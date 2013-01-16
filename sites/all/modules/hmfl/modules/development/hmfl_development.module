@@ -1,0 +1,953 @@
+<?php
+
+
+
+function hmfl_development_menu()
+{
+  $items = array(
+    'developer/%/developments' => array(
+      'title' => 'Developments',
+      'description' => 'Manage development profiles',
+      'page callback' => 'hmfl_development_list',
+      'page arguments' => array(1),
+      'access callback' => 'hmfl_developer_admin_check',
+      'access arguments' => array(1),
+      'position' => 'left',
+      'weight' => -4,
+      'type' => MENU_LOCAL_TASK,
+    ),
+    'developer/%/developments/new' => array(
+      'title' => 'New',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array(
+        'hmfl_development_new',1
+      ),
+      'access callback' => 'hmfl_developer_admin_check',
+      'access arguments' => array(1),
+      'type' => MENU_LOCAL_TASK,
+    ),
+    'admin/hmfl/development'=> array(
+      'title' => 'Development',
+      'page callback' => 'hmfl_development_dashboard',
+      'access arguments' => array(
+        'access administration pages'
+      ),
+      'type' =>  MENU_LOCAL_TASK,
+      'weight' => -10,
+    ),
+    'development'=> array(
+      'title' => 'Development',
+      'page callback' => 'hmfl_development_dashboard',
+      'access callback' => 'hmfl_development_access',
+      'type' =>  MENU_LOCAL_TASK,
+      'weight' => -10,
+    ),
+    'development/%/delete' => array(
+      'title' => 'Delete',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('hmfl_development_confirm_delete', 1),
+        'access callback' => 'hmfl_developer_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_LOCAL_TASK,
+    ),
+    'development_json/%' => array(
+      'page callback' => 'hmfl_development_json',
+      'page arguments' => array(1),
+      'access arguments' => array('access content'),
+    ),
+//     'development/%' => array(
+//       'title callback' => 'entity_label',
+//       'title arguments' => array('hmfl_development', 1),
+//       'page callback' => 'hmfl_development_view',
+//       'page arguments' => array(1),
+//       'access callback' => 'hmfl_development_admin_check',
+//       'access arguments' => array(1),
+//     ),
+     'development/%' => array(
+      'title' => 'Edit',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('hmfl_development_edit', 1),
+        'access callback' => 'hmfl_development_admin_check',
+        'access arguments' => array(1),
+    ),
+    'development/%/edit' => array(
+      'title' => 'Edit',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'weight' => -10,
+    ),
+
+    'development/%/admins' => array(
+      'title' => 'Admins',
+        'page callback' => 'hmfl_development_admins',
+        'page arguments' => array(1),
+        'access callback' => 'hmfl_development_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_LOCAL_TASK,
+    ),
+    'development/%/admins/add' => array(
+      'title' => 'Add',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array( 'hmfl_development_admin_add', 1),
+        'access callback' => 'hmfl_development_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_LOCAL_TASK,
+    ),
+    'development/%/admins/%/delete' => array(
+      'title' => 'Delete',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('hmfl_development_admin_delete',1,3),
+        'access callback' => 'hmfl_development_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_NORMAL_ITEM,
+    ),
+
+    'development/%/pdf' => array(
+      'title' => 'PDF',
+        'page callback' => 'hmfl_development_pdf_list',
+        'page arguments' => array(1),
+        'access callback' => 'hmfl_development_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_LOCAL_TASK,
+    ),
+    'development/%/pdf/add' => array(
+      'title' => 'Add',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array( 'hmfl_development_pdf_add', 1),
+        'access callback' => 'hmfl_development_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_LOCAL_TASK,
+    ),
+    'development/%/pdf/%/delete' => array(
+      'title' => 'Delete',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('hmfl_development_pdf_confirm_delete',1,3),
+        'access callback' => 'hmfl_development_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_NORMAL_ITEM,
+    ),
+    'development/%/pdf/%/edit' => array(
+      'title' => 'Edit',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('hmfl_development_pdf_edit', 1,3),
+        'access callback' => 'hmfl_development_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_NORMAL_ITEM,
+    ),
+  );
+  return $items;
+}
+
+function hmfl_development_access()
+{
+  global $user;
+  return hmfl_developer_access()||in_array("development admin",$user->roles);
+}
+
+function hmfl_development_uri($entity)
+{
+  return array(
+    'path' => 'development/' . $entity->id,
+  );
+}
+
+function hmfl_development_entity_info()
+{
+  $entities = array(
+    'hmfl_development' => array(
+      'label' => t('development'),
+      'controller class' => 'EntityAPIControllerExportable',
+      'views controller class' => 'EntityDefaultViewsController',
+      'base table' => 'hmfl_development',
+      'uri callback' => 'hmfl_development_uri',
+      'fieldable' => TRUE,
+      'entity keys' => array(
+        'id' => 'id'
+      ),
+      'static cache' => TRUE,
+      'bundle keys' => array(
+        'bundle' => 'id',
+      ),
+      'bundles' => array(
+        'hmfl_development' => array(
+          'label' => 'hmfl',
+          'admin' => array(
+            'path' => 'admin/hmfl/development'
+          )
+        )
+      ),
+      'view modes' => array(
+        'full' => array(
+          'label' => t('development'),
+          'custom settings' => FALSE
+        )
+      ),
+      'uri callback' => 'entity_class_uri',
+      'module' => 'hmfl_development'
+    ),
+    'hmfl_development_admin' => array(
+      'label' => t('development admin'),
+      'controller class' => 'EntityAPIControllerExportable',
+      'views controller class' => 'EntityDefaultViewsController',
+      'base table' => 'hmfl_development_admin',
+      'fieldable' => FALSE,
+      'entity keys' => array(
+        'id' => 'development_id'
+      ),
+    ),
+    'hmfl_development_pdf' => array(
+      'label' => t('development pdf'),
+      'controller class' => 'EntityAPIControllerExportable',
+      'views controller class' => 'EntityDefaultViewsController',
+      'base table' => 'hmfl_development_pdf',
+      'fieldable' => FALSE,
+      'entity keys' => array(
+        'id' => 'id'
+      ),
+    ),
+  );
+  return $entities;
+}
+
+
+
+
+function hmfl_development_theme()
+{
+  $themes = array(
+    'hmfl_development_view' => array(
+      'render element' => 'development'
+    ),
+    'hmfl_development_list' => array(
+      'render element' => 'form'
+    ),
+    'hmfl_development_new' => array(
+      'render element'=>'form'
+    ),
+    'hmfl_development_edit' => array(
+      'render element'=>'form'
+    ),
+    'hmfl_development_admin_add'  => array(
+      'render element'=>'form'
+    ),
+    'hmfl_development_login_form'  => array(
+      'render element'=>'form'
+    ),
+  );
+  return $themes;
+}
+
+function hmfl_get_user_developments($uid)
+{
+  $result = db_query("select d.id from development_admin a inner join development d on d.id=a.development_id where a.user_id={$uid} union all select d.id from company_admin ca inner join development d on d.company_id=ca.company_id where ca.user_id={$uid}");
+  $developments = array();
+  while($row = $result->fetch(PDO::FETCH_NUM))
+  {
+    $developments[] = $row[0];
+  }
+}
+
+
+
+
+function hmfl_get_current_user_developments()
+{
+  global $user;
+  return hmfl_get_user_developments($user->uid);
+}
+
+
+function hmfl_development_administration_page()
+{
+  return "";
+}
+
+function hmfl_development_list($cid=0)
+{
+  $cid = intval($cid);
+
+  $plot_module_enabled = module_exists('hmfl_plot');
+  $header = array(
+    array('data' => t('ID'),'width' => 100),
+    array('data' => t('Development'),'width'=>300),
+    array("data"=>"",'width'=>50),
+    array("data"=>"",'width'=>50),
+    array("data"=>"",'width'=>50),
+  );
+
+  $query = db_select('hmfl_development', 'h')->extend('PagerDefault');
+  $query->fields('h', array('id', 'title'));
+  $is_admin = false;
+  if($cid)
+  {
+    $is_admin = true;
+    $build['add_development'] = array(
+      "#type"=>"markup",
+      "#markup"=>l("add development","developer/{$cid}/developments/new")
+    );
+    $query->condition("h.developer_id",$cid);
+
+
+  }
+  
+  if(!$cid)
+  {
+    //get user developments
+    global $user;
+    $query1 = db_select("hmfl_development_admin","d")->extend('PagerDefault');
+    $query1->addField('d', 'development_id', 'id');
+    $query1->condition("d.user_id",$user->uid);
+    $query2 = db_select("hmfl_developer_admin","c");
+    $query2->fields("d",array("id"))->condition("c.user_id",$user->uid);
+    $query2->join("hmfl_development","d","d.developer_id=c.developer_id");
+    $query1->union($query2);
+    $result = $query1->limit(10)->execute();
+    $developments = array();
+    foreach($result as $row)
+    {
+      $developments[] = $row->id;
+    }
+
+    if(empty($developments))
+    {
+      $query->condition('h.id',0); //just to cancel all rows
+    }
+    else
+    {
+      $query->condition('h.id', $developments,'IN');
+    }
+  }
+
+  $result = $query
+    ->limit(10)
+    ->execute();
+
+  $rows = array();
+  foreach ($result as $row)
+  {
+    $rows[] = array('data' => array(
+      $row->id,
+      l($row->title,"development/{$row->id}"),
+      $is_admin?l("edit","development/{$row->id}/edit"):"",
+      l("admins","development/{$row->id}/admins"),
+      l("delete","development/{$row->id}/delete")
+    ));
+  }
+
+  $build['pager_table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('There are no developments yet'),
+  );
+
+  $build['pager_pager'] = array('#theme' => 'pager');
+  return $build;
+}
+
+
+function hmfl_development_new($form, &$form_state,$cid)
+{
+  $cid = intval($cid);
+  return hmfl_development_form($form, $form_state, entity_create("hmfl_development",array("id"=>"","developer_id"=>$cid, "title"=>"")));
+}
+
+function hmfl_development_form($form, &$form_state, $development)
+{
+  $form_state['development'] = $development;
+
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#required' => TRUE,
+    "#title"=>'Title',
+    "#default_value"=>$development->title
+  );
+
+  field_attach_form('hmfl_development', $development, $form, $form_state);
+
+  $submit = array();
+  if (!empty($form['#submit'])) {
+    $submit += $form['#submit'];
+  }
+
+  $form['actions'] = array(
+    '#weight' => 100,
+  );
+
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save Development'),
+    '#submit' => $submit + array('hmfl_development_submit'),
+  );
+  return $form;
+}
+
+function hmfl_development_submit($form, &$form_state)
+{
+  $development = $form_state['development'];
+//   entity_form_submit_build_entity('hfml_development', $development, $form, $form_state);
+
+  $development = (object)array_merge((array) $development, $form_state['values']); 
+  field_attach_submit('hmfl_development', $development, $form, $form_state);
+//   drupal_save("hmfl_development",$development);
+//   entity_get_controller('hmfl_development')->save($development);
+// var_dump($development);die();
+  try
+  {
+    if(!empty($development->id))
+    {
+      drupal_write_record('hmfl_development', $development, 'id');
+      field_attach_update("hmfl_development",$development);
+      module_invoke_all('entity_update', $development, 'hmfl_development');
+
+    }
+    else
+    {
+      drupal_write_record('hmfl_development', $development);
+      field_attach_insert("hmfl_development",$development);
+      module_invoke_all('entity_insert', $development, 'hmfl_development');
+    }
+  }
+  catch(Exception $e)
+  {
+  var_dump($e);die();
+  }
+
+
+  $form_state['redirect'] = hmfl_development_uri($development);
+
+  drupal_set_message(t('Development %title saved.', array('%title' => entity_label('hmfl_development', $development))));
+}
+
+function hmfl_development_admin_check($id)
+{
+  if(user_access('access administration pages'))
+  {
+    //super admin
+    return true;
+  }
+  if(!user_is_anonymous())
+  {
+    if(!$id) return false;
+    global $user;
+    $id = intval($id);
+    if(db_query_range("select * from hmfl_development_admin where development_id={$id} and user_id={$user->uid}",0,1)->rowCount()>0)
+    {
+      return true;
+    }
+    if(db_query_range("select c.user_id from hmfl_development d inner join hmfl_developer_admin c on c.developer_id=d.developer_id where d.id={$id}",0,1)->rowCount()>0)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hmfl_development_edit($form, &$form_state, $id)
+{
+  $development = entity_load('hmfl_development', array($id), array(), false);
+  if(!isset($development[$id])||empty($development[$id]))
+  {
+    drupal_set_message("No such development","error");
+  }
+  else
+  {
+    $development = $development[$id];
+
+    return hmfl_development_form($form,$form_state,$development);
+
+  }
+  return $form;
+}
+
+function hmfl_development_confirm_delete($form, &$form_state, $did)
+{
+  $development = entity_load('hmfl_development', array(intval($did)), array(), false);
+  if(!isset($development[$did]))
+  {
+    drupal_set_message("Invalid request","error");
+  }
+  else
+  {
+    $development = $development[$did];
+
+      $form_state['development'] = $development;
+      return confirm_form($form,t('Are you sure you want to delete the %title development?',array('%title' => $development->title)),"developer/{$development->developer_id}/developments",t('This action is not reversible'),t('Delete'),t('Cancel'));
+  }
+  return $form;
+}
+
+function hmfl_development_confirm_delete_submit($form, &$form_state)
+{
+  $development = $form_state['development'];
+  $cid = $development->developer_id;
+  entity_delete("hmfl_development",$development->id);
+  entity_delete("hmfl_development_admin",$development->id);
+  drupal_set_message("development deleted");
+  $form_state['redirect'] = "developer/{$cid}/developments";
+}
+function hmfl_development_json($id)
+{
+
+  $development = entity_load('hmfl_development', array(intval($id)), array(), false);
+  if(!$development||!isset($development[$id]))
+  {
+    drupal_not_found();
+    return null;
+  }
+  $development = $development[$id];
+  drupal_json_output($development);
+  die();
+
+}
+
+function hmfl_development_view($id)
+{
+  $development = entity_load('hmfl_development', array(intval($id)), array(), false);
+  if(!$development||!isset($development[$id]))
+  {
+    drupal_not_found();
+    return null;
+  }
+  $development = $development[$id];
+  $development->content = array();
+
+  $title = filter_xss($development->title);
+  drupal_set_title($title);
+  field_attach_prepare_view(
+    'hmfl_development',
+    array($development->id => $development),
+    "full"
+  );
+  entity_prepare_view('hmfl_development', array($development->id => $development));
+
+  $development->content += field_attach_view(
+      'hmfl_development',
+      $development, "full"
+  );
+ 
+  $development->content += array(
+    "#title"     => "$title",
+    '#theme'     => 'hmfl_development',
+    '#element'   => $development,
+    '#view_mode' => 'full',
+    '#language'  => NULL,
+  );
+  return $development->content;
+}
+
+
+
+function hmfl_development_admins($did)
+{
+
+  $header = array(
+    array('data' => t('id'),'width' => 100),
+    array('data' => t('Name'),'width'=>300),
+    array("data"=> t("Email"),'width'=>200),
+    array("data"=>"",'width'=>50),
+  );
+
+  $query = db_select('hmfl_development_admin', 'h')->extend('PagerDefault');
+  $query->fields('u', array('uid', 'name',"mail"));
+  $query->join("users","u","u.uid=h.user_id");
+  $query->condition("h.development_id",intval($did),"=");
+  
+  $result = $query->limit(10)->execute();
+
+  $rows = array();
+  foreach ($result as $row)
+  {
+    $rows[] = array('data' => array(
+      $row->uid,
+      l($row->name,"user/{$row->uid}"),
+      l($row->mail,"mailto:{$row->mail}"),
+      l("delete","development/{$did}/admins/{$row->uid}/delete")
+    ));
+  }
+  $build['pager_table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('There are no admins yet'),
+  );
+  $build['add_link'] = array(
+    "#type"=>'markup',
+    '#markup' => l("add admin","development/{$did}/admins/add")
+  );
+  $build['pager_pager'] = array('#theme' => 'pager');
+  return $build;
+}
+
+function hmfl_development_admin_add($form, &$form_state, $development)
+{
+  $development = intval($development);
+  $form_state['development_id'] = $development;
+  $users = array();
+  $query = db_select('users', 'u')->extend('PagerDefault');
+  $query->fields('u', array('uid', 'name'));
+  $query->leftJoin("hmfl_development_admin","h","h.development_id={$development} and h.user_id=u.uid");
+  $query->isNull("h.user_id");
+  $query->condition("u.uid","0","<>");
+  $result = $query->limit(10)->execute();
+
+  foreach($result as $row)
+  {
+    $users[$row->uid] = array(
+      '#tree' => TRUE,
+      "#entity"=>$row,
+      'uid' => array(
+        '#type' => 'checkbox',
+        '#return_value' => $row->uid
+      ),
+      "name"=>array(
+        "#type"=>'markup',
+        '#markup' => $row->name
+      ),
+    );
+  }
+  $form['users'] = $users;
+  $form['pager_pager'] = array('#theme' => 'pager');
+  $form['new_user_name'] = array(
+    '#type' => 'textfield',
+    '#required' => FALSE,
+    "#title"=>'Name (new user)',
+  );
+  $form['new_user_email'] = array(
+    '#type' => 'textfield',
+    '#required' => FALSE,
+    "#title"=>'Email (new user)',
+  );
+  
+  //field_attach_form('hmfl_development_admin', $development_admin, $form, $form_state);
+
+  $submit = array();
+  if (!empty($form['#submit'])) {
+    $submit += $form['#submit'];
+  }
+
+  $form['actions'] = array(
+    '#weight' => 100,
+  );
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save Developer'),
+    '#submit' => $submit + array('hmfl_development_admin_submit'),
+  );
+  $form['#validate'][] = 'hmfl_development_admin_validate';
+
+  return $form;
+}
+
+function theme_hmfl_development_admin_add($variables)
+{
+  $form = $variables['form'];
+
+  $header = array(
+    array('data' => '', 'width' => 60),
+    array('data' => 'Name', 'width' => 200),
+  );
+  $rows = array();
+  if (!empty($form['users']))
+  {
+    foreach (element_children($form['users']) as $uid)
+    {
+      $rows[] = array(
+        'data' => array(
+          array('data' => drupal_render($form['users'][$uid]['uid'])),
+          array('data' => drupal_render($form['users'][$uid]['name'])),
+        )
+      );
+    }
+  }
+
+  $output = theme('table', array(
+    'header' => $header,
+    'rows' => $rows
+  ));
+  $output = $output . drupal_render_children($form);
+  return $output;
+}
+
+function hmfl_development_admin_validate( &$form , &$form_state )
+{
+  foreach($form['users'] as $user)
+  {
+    if(isset($user['uid'])&&$user['uid']['#value']) return true;
+  }
+  if(empty($form['new_user_name']['#value'])&&empty($form['new_user_email']['#value']))
+  {
+    drupal_set_message("you need to select users from list or add new users","error");
+    form_error($form['new_user_name'], "");
+    form_error($form['new_user_email'], "");
+  }
+  else
+  {
+    if(empty($form['new_user_name']['#value'])||user_validate_name($form['new_user_name']['#value'])||(bool) db_select('users')->fields('users', array('uid'))->condition('name', db_like($form['new_user_name']['#value']), 'LIKE')->range(0, 1)->execute()->fetchField())
+    {
+      form_error($form['new_user_name'], t('invalid username or already taken'));
+    }
+    if(empty($form['new_user_email']['#value'])||user_validate_mail($form['new_user_email']['#value'])||(bool) db_select('users')->fields('users', array('uid'))->condition('mail', db_like($form['new_user_email']['#value']), 'LIKE')->range(0, 1)->execute()->fetchField())
+    {
+      form_error($form['new_user_email'], t('invalid email or already taken'));
+    }
+  }
+
+}
+
+function hmfl_development_admin_submit($form, &$form_state)
+{
+  $development_id = $form_state['development_id'];
+  $rid = db_query("SELECT rid FROM role WHERE name = 'development admin'")->fetchField();
+  $uids = array();
+  foreach($form['users'] as $user)
+  {
+    if(isset($user['uid'])&&$user['uid']['#value'])
+    {
+      $uid = intval($user['uid']['#value']);
+      $admin = entity_create("hmfl_development_admin",array("development_id"=>$development_id, "user_id"=>$uid));
+      entity_save("hmfl_development_admin",$admin);
+      $uids[] = $uid;
+    }
+  }
+  if(!empty($uids))
+  {
+    user_multiple_role_edit($uids, 'add_role', $rid);
+  }
+  if(!empty($form['new_user_name']['#value'])&&!empty($form['new_user_email']['#value']))
+  {
+    $password = user_password(8);
+    $fields = array(
+      'name' => $form['new_user_name']['#value'],
+      'mail' => $form['new_user_email']['#value'],
+      'pass' => $password,
+      'status' => 1,
+      'init' => 'email address',
+      'roles' => array(
+        DRUPAL_AUTHENTICATED_RID => 'authenticated user',
+        $rid => "development admin"
+      ),
+    );
+    $account = user_save('', $fields);
+    $account->password = $fields['pass'];
+//       drupal_mail('user', 'register_no_approval_required', $form['new_user_email']['#value'], NULL, array('account' => $account), variable_get('site_mail', 'noreply@example.com'));
+
+    $admin = entity_create("hmfl_development_admin",array("development_id"=>$development_id, "user_id"=>$account->uid));
+    entity_save("hmfl_development_admin",$admin);
+  }
+  $form_state['redirect'] = "development/$development_id/admins";
+  drupal_set_message(t('Updated development admins'));
+
+}
+
+function hmfl_development_admin_delete($form, &$form_state, $did, $uid)
+{
+  $did = intval($did);
+  $uid = intval($uid);
+  db_delete("hmfl_development_admin")->condition('development_id', $did)->condition("user_id",$uid)->execute();
+  drupal_set_message("admin deleted");
+  drupal_goto("development/$did/admins");
+  return $form;
+}
+
+function hmfl_development_login_form()
+{
+  $form = array();
+  $form['username'] = array(
+    '#type' => 'textfield',
+    '#required' => TRUE,
+    "#title"=>'name',
+  );
+  $form['password'] = array(
+    '#type' => 'password',
+    '#required' => TRUE,
+    "#title"=>'password',
+  );
+  $form['actions'] = array(
+    '#weight' => 100,
+  );
+  $submit = array();
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Login'),
+    '#submit' => $submit + array('hmfl_development_login_submit'),
+  );
+  return $form;
+}
+
+function hmfl_development_login_submit($form,&$form_state)
+{
+  if($uid = user_authenticate($form['username']['#value'],$form['password']['#value']))
+  {
+    $account = user_load($uid);
+    if(in_array("administrator",$account->roles)||in_array("development admin",$account->roles))
+    {
+      global $user;
+      $user = $account;
+      user_login_finalize($form_state);
+      drupal_goto(request_path());
+      return true;
+    }
+  }
+  return drupal_set_page_content(theme('hmfl_denied'));
+}
+
+function hmfl_development_dashboard()
+{
+  global $user;
+  $count = db_query("select count(development_id) from hmfl_development_admin where user_id={$user->uid}")->fetchField();
+  if($count>1||!$count)
+  {
+    return hmfl_development_list();
+  }
+  else
+  {
+    $id = db_query_range("select development_id from hmfl_development_admin where user_id={$user->uid}",0,1)->fetchField();
+    return hmfl_development_view($id);
+  }
+}
+
+function hmfl_development_pdf_list($did)
+{
+
+  $header = array(
+    array('data' => t('id'),'width' => 100),
+    array('data' => t('title'),'width'=>300),
+    array("data"=> t("user"),'width'=>200),
+    array("data"=>"",'width'=>50),
+    array("data"=>"",'width'=>50),
+  );
+
+  $query = db_select('hmfl_development_pdf', 'p')->extend('PagerDefault');
+  $query->fields('p', array('id', 'title',"fid"))->fields("u",array("uid","name"));
+  $query->join("users","u","u.uid=p.user_id");
+  $query->condition("p.development_id",intval($did),"=");
+
+  $result = $query->limit(10)->execute();
+
+  $rows = array();
+  foreach ($result as $row)
+  {
+    $file = file_load($row->fid);
+    $rows[] = array('data' => array(
+      $row->id,
+      l($row->title,file_create_url($file->uri)),
+      l($row->name,"user/{$row->uid}"),
+      l("edit","development/{$did}/pdf/{$row->id}/edit"),
+      l("delete","development/{$did}/pdf/{$row->id}/delete")
+    ));
+  }
+  $build['pager_table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('There are no PDF\'s yet'),
+  );
+  $build['add_link'] = array(
+    "#type"=>'markup',
+    '#markup' => l("add pdf","development/{$did}/pdf/add")
+  );
+  $build['pager_pager'] = array('#theme' => 'pager');
+  return $build;
+}
+
+
+function hmfl_development_pdf_append_form($form, &$form_state, $entity)
+{
+  $form_state['hmfl_development_pdf_entity'] = $entity;
+  $form['pdf_title'] = array(
+    '#type' => 'textfield',
+    '#required' => TRUE,
+    "#title"=>'Title',
+    "#default_value"=>$entity->title
+  );
+  $form['pdf_file'] = array(
+    '#type'   => "managed_file",
+    '#title'  => t("Upload PDF"),
+    '#descripion' => t("Only PDF Files are allowed."),
+    '#upload_location'    => "public://pdf/",
+    "#upload_validators"  => array("file_validate_extensions" => array("pdf")),
+    "#default_value" => $entity->fid
+  );
+  return $form;
+}
+
+
+
+function hmfl_development_pdf_save($form, &$form_state)
+{
+  $entity = $form_state['hmfl_development_pdf_entity'];
+  $file = file_load($form_state['values']['pdf_file']);
+  $file->status = FILE_STATUS_PERMANENT;
+  file_save($file);
+  $entity->fid = $file->fid;
+  $entity->title = $form_state['values']['pdf_title'];
+  entity_save("hmfl_development_pdf",$entity);
+  file_usage_add($file, 'hmfl_development', 'hmfl_development', $entity->id);
+  return $entity;
+}
+
+function hmfl_development_pdf_form_submit($form, &$form_state)
+{
+  $entity = hmfl_development_pdf_save($form, $form_state);
+  $form_state['redirect'] = "development/{$entity->development_id}/pdf";
+}
+
+function hmfl_development_pdf_form($form, &$form_state,$entity)
+{
+  $form = hmfl_development_pdf_append_form($form, $form_state,$entity);
+  $form['actions'] = array(
+    '#weight' => 100,
+  );
+  $submit = array();
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('submit'),
+    '#submit' => $submit + array('hmfl_development_pdf_form_submit'),
+  );
+  return $form;
+}
+function hmfl_development_pdf_add($form, &$form_state,$did)
+{
+  $did = intval($did);
+  global $user;
+  return hmfl_development_pdf_form($form, $form_state,  entity_create("hmfl_development_pdf",array("id"=>"","development_id"=>$did, "title"=>"","user_id"=>$user->uid)));
+}
+
+function hmfl_development_pdf_edit($form, &$form_state,$did, $id)
+{
+  $entity = entity_load("hmfl_development_pdf",array(intval($id)));
+  if(empty($entity)||!isset($entity[$id])||$entity[$id]->development_id!=$did)
+  {
+    drupal_not_found();
+    return $form;
+  }
+  return hmfl_development_pdf_form($form, $form_state, $entity[$id]);
+}
+
+function hmfl_development_pdf_confirm_delete($form, &$form_state,$did,$id)
+{
+  $pdf = entity_load('hmfl_development_pdf', array(intval($id)));
+  if(!isset($pdf[$id])||$pdf[$id]->development_id!=$did)
+  {
+    drupal_set_message("Invalid request","error");
+  }
+  else
+  {
+    $pdf = $pdf[$id];
+    $form_state['pdf_entity'] = $pdf;
+    return confirm_form($form,t('Are you sure you want to delete the %title PDF?',array('%title' => $pdf->title)),"development/{$pdf->development_id}/pdf",t('This action is not reversible'),t('Delete'),t('Cancel'));
+  }
+  return $form;
+}
+
+
+function hmfl_development_pdf_confirm_delete_submit($form, &$form_state)
+{
+  $pdf = $form_state['pdf_entity'];
+  file_delete(file_load($pdf->fid));
+  entity_delete("hmfl_development_pdf",$pdf->id);
+  drupal_set_message("pdf deleted");
+  $form_state['redirect'] = "development/{$pdf->development_id}/pdf";
+} 
+
+?>

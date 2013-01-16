@@ -1,0 +1,23 @@
+<?php
+
+
+function hmfl_plot_schema() {
+  $schema = array();
+  
+  $schema = array(
+    'hmfl_plot'=> array(
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'development_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'user_id'=> array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'name' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => '')
+      ),
+      'primary key' => array('id'),
+      'unique keys' => array(
+        'name' => array('development_id',"name"),
+       ),
+      'indexes' => array('development_id' => array('development_id'),)
+    ),
+  );
+  return $schema;
+}

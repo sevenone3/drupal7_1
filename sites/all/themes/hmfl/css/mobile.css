@@ -1,0 +1,172 @@
+/* 
+    Document   : moble
+    Created on : Nov 15, 2012, 6:23:22 PM
+    Author     : SammaMax
+    Description:
+        Purpose of the stylesheet follows.
+*/
+
+.login_container{
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    background: url("../images/mobile/m-back.png") no-repeat scroll center;
+    height: 925px;
+    margin-top: 10px;    
+}
+
+.logo{
+    width: 189px;
+    margin: auto;
+    display: block;
+}
+
+.login-form{
+    padding: 15px 30px;
+}
+
+.login-form label{
+    display: block;
+    font-size: 3.6em;
+    color: #636363;
+    margin: 13px 0;
+}
+
+.login-form input[type="checkbox"]{
+    width:40px;
+    height:40px;
+    border: 1px solid #636363;
+}
+    
+.login-form input[type="text"],.login-form input[type="password"]{
+    display: block;
+    border:1px solid #9798a5;
+    font-size: 3.6em;
+    color:#636363;
+    width: 95%;
+    margin-top: 13px;
+    padding: 10px 2.5%;
+}
+.login-form input[type="submit"]{
+    display: block;
+    font-size: 7.2em;
+    color:#000;
+    width: 100%;
+}
+.login-form label{
+    color:#636363;
+}
+.login-form select{
+    color: #636363;
+    font-size: 3.6em;
+    padding: 4px;
+    margin: 1px;
+    border:1px solid #9798a5;
+    width: 100%;
+}
+
+.txt-logo{
+    margin-left: 27px;
+    margin-top: 18px;
+}
+
+.container{
+    width:100%;
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.heading{
+    font-size: 2.6em;
+    color: #9c9c9c;
+    padding: 12px 0;
+    border-bottom: 2px solid #e2e2e2;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+.img-cont{
+    margin-bottom: 20px;
+}
+.limg{
+    margin-top: 80px;
+}
+
+.c-box{
+    padding: 14px;
+    margin-bottom: 20px;
+    border: 2px solid #e4e4e4;
+}
+.c-box a{
+    text-decoration: none;
+    color: #636363;
+}
+.cb-icon{
+    margin-left: 3px;
+    width:150px;
+    height: 112px;
+}
+
+.cb-txt{
+    font-size: 3.33em;
+    padding-left: 38px;
+    color:#636363;
+    width: 330px;
+    padding-top: 25px;
+}
+
+
+.icon1{
+    background: url("../images/mobile/icon1.png") no-repeat scroll center;
+}
+.icon2{
+    background: url("../images/mobile/icon2.png") no-repeat scroll center;
+}
+.icon3{
+    background: url("../images/mobile/icon3.png") no-repeat scroll center;
+}
+.icon4{
+    background: url("../images/mobile/icon4.png") no-repeat scroll center;
+}
+.icon5{
+    background: url("../images/mobile/icon5.png") no-repeat scroll center;
+}
+.icon6{
+    background: url("../images/mobile/icon6.png") no-repeat scroll center;
+}
+.icon7{
+    background: url("../images/mobile/icon7.png") no-repeat scroll center;
+}
+
+.c-list{
+    margin-top: 40px;
+    font-size: 2.1em;
+}
+
+.c-list ul {
+    list-style: none;
+}
+.c-list ul li{
+    padding-bottom: 25px;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #58738a;
+}
+
+.cl-size{
+    color: #636363;
+}
+
+.no-border{
+    border-bottom: none !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+}
+span.h2{
+    font-size: 3.33em;
+    color:#636363;
+    display: block;
+    margin-bottom: 30px;
+}
+.c-box p{
+    font-size: 2.6em;
+}

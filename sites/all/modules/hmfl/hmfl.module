@@ -1,0 +1,144 @@
+<?php
+
+function hmfl_menu()
+{
+  $items = array(
+    'admin/hmfl' => array(
+      'title' => 'HMFL Admin',
+      'page callback' => 'hmfl_admin',
+      'access arguments' => array(
+        'access administration pages'
+      ),
+      'type' => MENU_LOCAL_TASK,
+    ),
+    "hmfl_login" => array(
+      'page callback' => 'hmfl_access_denied_redirect',
+      'access callback' => 'hmfl_access_callback',
+      'type' => MENU_CALLBACK,
+      'title' => 'Access denied',
+      'description' => 'You are not authorized to access this page.',
+    ),
+    "dashboard" => array(
+      'page callback' => 'hmfl_dashboard',
+      'access callback' => 'hmfl_access_callback',
+      'type' => MENU_CALLBACK,
+      'title' => 'Dashboard',
+    )
+  );
+  return $items;
+}
+
+function hmfl_access_callback()
+{
+  return TRUE;
+}
+
+
+function hmfl_permission()
+{
+  return array(
+    'administrate hmfl company' => array(
+      'title' => t('administrate hmfl company'),
+      'description' => t('Administrate Company'),
+    ),
+    'administrate hmfl development'=> array(
+      'title' => t('administrate hmfl development'),
+      'description' => t('Administrate Development'),
+    ),
+    "access hmfl plot" => array(
+      'title' => t('access hmfl plot'),
+      'description' => t(''),
+      'restrict access' => FALSE,
+    ),
+  );
+}
+
+function hmfl_theme()
+{
+  return array(
+    'hmfl_access_denied_redirect' => array(
+      'variables' => array("content"),
+    ),
+  );
+}
+
+function hmfl_admin()
+{
+  drupal_goto("admin/people/permissions",array('fragment' =>"module-hmfl"));
+}
+
+function hmfl_access_denied_redirect()
+{
+  if (user_is_anonymous())
+  {
+    $request = explode("/",request_path());
+//     $menu = menu_get_item(request_path());
+//     $required_access = unserialize($menu['access_arguments']);
+
+    if(($request[0]=="developer" && $request[2] == '')&&module_exists("hmfl_developer"))
+    {
+      drupal_set_title("Login Developer");
+      return drupal_get_form("hmfl_developer_login_form");
+
+    }
+    elseif(($request[0]=="development")&&module_exists("hmfl_development"))
+    {
+      drupal_set_title("Login Development");
+      return drupal_get_form("hmfl_development_login_form");
+    }
+    elseif(!$request[0])
+    {
+      drupal_set_title("Classic folios login");
+      return drupal_get_form("user_login");
+    }
+	elseif($request[0] == 'developer' && $request[2] == 'user') 
+	{
+	  drupal_set_title("Plot user login");
+      return drupal_get_form("hmfl_plot_login_form");
+	}
+    else
+    {
+      //super admin
+      header('Location: ' . url('user/login', array('query' => array('destination' => urldecode(request_uri())), 'absolute' => TRUE)), TRUE, 302);
+      drupal_exit();
+    }
+
+  }
+  else
+  {
+    return drupal_set_page_content(theme('hmfl_denied'));
+  }
+}
+
+function theme_hmfl_denied()
+{
+  drupal_set_title(t('Access denied'));
+  return '<p>' . t('You are not authorized to access this page.') . '</p>';
+}
+
+function hmfl_dashboard()
+{
+  if(user_is_anonymous())
+  {
+    drupal_access_denied();
+  }
+  else
+  {
+    global $user;
+
+    if(in_array("developer admin",$user->roles)||in_array("administrator",$user->roles)&&module_exists("hmfl_developer"))
+    {
+      return hmfl_developer_dashboard();
+    }
+    elseif(in_array("development admin",$user->roles)&&module_exists("hmfl_development"))
+    {
+      return hmfl_development_dashboard();
+    }
+    elseif(module_exists("hmfl_plot"))
+    {
+      return hmfl_plot_dashboard();
+    }
+  }
+}
+
+?>

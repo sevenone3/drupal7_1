@@ -1,0 +1,53 @@
+<?php
+
+
+function hmfl_development_schema() {
+  $schema = array();
+  
+  $schema = array(
+    'hmfl_development'=> array(
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'developer_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'title' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => '')
+      ),
+      'primary key' => array('id'),
+      'indexes' => array('developer_id' => array('developer_id'),)
+    ),
+    'hmfl_development_admin' => array(
+      'fields' => array(
+        'development_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'user_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      ),
+      'primary key' => array('development_id','user_id'),
+      'indexes' => array('development_id' => array('development_id')),
+    ),
+    'hmfl_development_pdf' => array(
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'development_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'user_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+        'title' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+        'fid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      ),
+      'primary key' => array('id'),
+      'indexes' => array('development_id' => array('development_id')),
+    )
+  );
+  return $schema;
+}
+
+function hmfl_development_install()
+{
+  $permissions = array();
+  $role = new stdClass();
+  $role->name = "development admin";
+  $role->weight = 1;
+  user_role_save($role);
+  user_role_grant_permissions($role->rid, $permissions);
+}
+
+function hmfl_development_uninstall()
+{
+  user_role_delete("development admin");
+}

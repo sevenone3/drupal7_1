@@ -1,0 +1,7 @@
+package = "HMFL"
+name = "Development"
+description = "HMFL Development Entity"
+core = 7.x
+version = 7.x-1.0
+dependencies[] = hmfl_developer
+dependencies[] = entity

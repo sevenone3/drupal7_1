@@ -1,0 +1,14 @@
+package = "HMFL"
+name = "HMFL Core"
+description = "HMFL Core Modlule"
+core = 7.x
+version = 7.x-1.0
+
+;dependencies[] = 
+
+; Module includes
+;files[] = 
+
+; Views handlers
+
+ 

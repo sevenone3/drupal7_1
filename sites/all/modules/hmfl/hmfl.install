@@ -1,0 +1,21 @@
+<?php
+
+function hmfl_enable() {
+  variable_set('site_403', 'hmfl_login');
+}
+
+
+function hmfl_disable() {
+  variable_del('site_403');
+}
+
+
+function hmfl_uninstall() {
+  variable_del('hmfl_display_denied_message');
+  variable_del('hmfl_access_denied_message');
+}
+
+
+function hmfl_update_7000() {
+  variable_del('hmfl_user_register_message');
+}

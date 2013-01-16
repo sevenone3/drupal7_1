@@ -1,0 +1,66 @@
+<?php
+
+
+function hmfl_plot_schema() {
+  $schema = array(
+    'hmfl_plot'=> array(
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'development_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'group_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'user_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'name' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      ),
+      'primary key' => array('id'),
+      'unique keys' => array(
+        'name' => array('development_id',"group_id","name"),
+       ),
+      'indexes' => array('development_id' => array('development_id'),'group_id' => array('group_id'),'user_id' => array('user_id'))
+    ),
+    'hmfl_plot_group' =>array(
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'development_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'address' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      ),
+      'primary key' => array('id'),
+      'indexes' => array('development_id' => array('development_id'),)
+    ),
+    'hmfl_plot_temporary_password' =>array(
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'password' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      ),
+      'primary key' => array('id'),
+      'unique keys' => array(
+        'plot_id' => array('uid'),
+       ),
+    ),
+    'hmfl_plot_group_pdf'=>array(
+      'fields' => array(
+        'group_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'pdf_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+      ),
+      'primary key' => array(
+        'group_id',"pdf_id",
+       ),
+      'indexes' => array('group_id' => array('group_id'),)
+    ),
+    'hmfl_plot_pdf'=>array(
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'plot_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'pdf_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+      ),
+      'primary key' => array('id'),
+      'indexes' => array('plot_id' => array('plot_id'),)
+    ),
+  );
+  return $schema;
+}
+function hmfl_plot_install()
+{}
+
+function hmfl_plot_enable()
+{}

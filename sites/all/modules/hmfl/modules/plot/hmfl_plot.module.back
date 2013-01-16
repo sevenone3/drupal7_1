@@ -1,0 +1,578 @@
+<?php
+
+
+
+function hmfl_plot_menu()
+{
+  $items = array(
+    'development/%/plots' => array(
+      'title' => 'Plots',
+      'description' => 'Manage development profiles',
+      'page callback' => 'hmfl_plot_list',
+      'page arguments' => array(1),
+      'access arguments' => array('access hmfl plot'),
+      'position' => 'left',
+      'weight' => -4,
+      'type' => MENU_LOCAL_TASK,
+    ),
+    'development/%/plots/new' => array(
+      'title' => 'New',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array(
+        'hmfl_plot_new',1
+      ),
+      'access arguments' => array(
+        'administrate hmfl development'
+      ),
+      'type' => MENU_LOCAL_TASK,
+    ),
+    'admin/hmfl/plot'=> array(
+      'title' => 'Plot',
+      'page callback' => 'hmfl_plot_dashboard',
+      'access arguments' => array(
+            'access administration pages'
+        ),
+      'type' =>  MENU_LOCAL_TASK,
+      'weight' => -10,
+    ),
+    'plot/%/delete' => array(
+      'title' => 'Delete',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('hmfl_plot_confirm_delete', 1),
+        'access arguments' => array(
+            'administrate hmfl development'
+        ),
+        'type' => MENU_NORMAL_ITEM,
+    ),
+
+    'plot/%' => array(
+      'title callback' => 'entity_label',
+      'title arguments' => array('hmfl_plot', 1),
+      'page callback' => 'hmfl_plot_view',
+      'page arguments' => array(1),
+      'access arguments' => array('access hmfl plot'),
+    ),
+    'plot/%/view' => array(
+      'title' => 'View',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'weight' => -10,
+    ),
+    'plot/%/edit' => array(
+      'title' => 'Edit',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('hmfl_plot_edit', 1),
+        'access arguments' => array(
+            'administrate hmfl development'
+        ),
+        'type' => MENU_LOCAL_TASK,
+    ),
+
+  );
+  return $items;
+}
+
+
+function hmfl_plot_uri($entity)
+{
+  return array(
+    'path' => 'plot/' . $entity->id,
+  );
+}
+
+function hmfl_plot_entity_info()
+{
+  $entities = array(
+    'hmfl_plot' => array(
+      'label' => t('development'),
+      'controller class' => 'EntityAPIControllerExportable',
+      'views controller class' => 'EntityDefaultViewsController',
+      'base table' => 'hmfl_plot',
+      'uri callback' => 'hmfl_plot_uri',
+      'fieldable' => TRUE,
+      'entity keys' => array(
+        'id' => 'id'
+      ),
+      'static cache' => TRUE,
+      'bundle keys' => array(
+        'bundle' => 'id',
+      ),
+      'bundles' => array(
+        'hmfl_plot' => array(
+          'label' => 'hmfl',
+          'admin' => array(
+            'path' => 'admin/hmfl/plot'
+          )
+        )
+      ),
+      'view modes' => array(
+        'full' => array(
+          'label' => t('development'),
+          'custom settings' => FALSE
+        )
+      ),
+      'uri callback' => 'entity_class_uri',
+      'module' => 'hmfl_plot'
+    ),
+  );
+  return $entities;
+}
+
+
+
+function hmfl_plot_theme()
+{
+// die("wtf");
+  $themes = array(
+    'hmfl_plot' => array(
+      'variables' => array('element' => null),
+      'template' => 'hmfl_plot'
+    ),
+    'hmfl_plot_view' => array(
+      'render element' => 'plot'
+    ),
+    'hmfl_plot_list' => array(
+      'render element' => 'form'
+    ),
+    'hmfl_plot_new' => array(
+      'render element'=>'form'
+    ),
+    'hmfl_plot_edit' => array(
+      'render element'=>'form'
+    ),
+    "hmfl_plot_login_form"=> array(
+      'render element'=>'form'
+    ),
+  );
+  return $themes;
+}
+
+function hmfl_plot_administration_page()
+{
+  return "";
+}
+
+function hmfl_plot_list($did=0)
+{
+  $did = intval($did);
+  $query = db_select('hmfl_plot', 'h')->extend('PagerDefault');
+  $query->fields('h', array('id', 'name'));
+  $is_admin = false;
+  if($did)
+  {
+    $is_admin = hmfl_development_admin_check($did);
+    if(!$is_admin)
+    {
+      return drupal_access_denied();
+    }
+    $build['add_plot'] = array(
+    "#type"=>"markup",
+    "#markup"=>l("add plot","development/{$did}/plots/new")
+    );
+    $query->condition("h.development_id",$did);
+  }
+
+  if(!$did)
+  {
+    global $user;
+    $query->condition("h.user_id",$user->uid);
+  }
+
+  $result = $query
+    ->limit(10)
+    ->execute();
+
+  $rows = array();
+  foreach ($result as $row)
+  {
+    $rows[] = array('data' => array(
+      $row->id,
+      l($row->name,"plot/{$row->id}"),
+      $is_admin?l("edit","plot/{$row->id}/edit"):"",
+      l("delete","plot/{$row->id}/delete")
+    ));
+  }
+  $header = array(
+    array('data' => t('ID'),'width' => 100),
+    array('data' => t('Plot'),'width'=>300),
+    array("data"=>"",'width'=>50),
+    array("data"=>"",'width'=>50),
+  );
+  $build['pager_table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('There are no plots yet'),
+  );
+
+  $build['pager_pager'] = array('#theme' => 'pager');
+  return $build;
+}
+
+
+function hmfl_plot_new($form, &$form_state,$did)
+{
+  if(hmfl_development_admin_check($did))
+  {
+    $did = intval($did);
+    return hmfl_plot_form($form, $form_state, entity_create("hmfl_plot",array("id"=>"","development_id"=>$did, "name"=>"","user_id"=>"")));
+  }
+  else
+  {
+    drupal_set_message("Access Denied");
+  }
+  return $form;
+}
+
+function hmfl_plot_form($form, &$form_state, $plot)
+{
+  $form_state['plot'] = $plot;
+
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#required' => TRUE,
+    "#title"=>'Name',
+    "#default_value"=>$plot->name
+  );
+
+  $result = db_query("select uid,name from users");
+  $users = array();
+  while($row = $result->fetch())
+  {
+    $users[$row->uid] = $row->name;
+  }
+  $form['user_id'] = array(
+    '#type' => 'select',
+    "#required" => FALSE,
+    "#title" => "User",
+    "#options" => $users,
+    "#default_value" => $plot->user_id
+  );
+  $form['new_user_name'] = array(
+    '#type' => 'textfield',
+    '#required' => FALSE,
+    "#title"=>'Name (new user)',
+  );
+  $form['new_user_email'] = array(
+    '#type' => 'textfield',
+    '#required' => FALSE,
+    "#title"=>'Email (new user)',
+  );
+
+  field_attach_form('hmfl_plot', $plot, $form, $form_state);
+
+  $submit = array();
+  if (!empty($form['#submit'])) {
+    $submit += $form['#submit'];
+  }
+
+  $form['actions'] = array(
+    '#weight' => 100,
+  );
+
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save Plot'),
+    '#submit' => $submit + array('hmfl_plot_submit'),
+  );
+
+  $form['#validate'][] = "hmfl_plot_validate";
+  return $form;
+}
+
+function hmfl_plot_validate($form, &$form_state)
+{
+  $plot = $form_state['plot'];
+  if(empty($form['user_id']['#value'])&&empty($form['new_user_name']['#value'])&&empty($form['new_user_email']['#value']))
+  {
+    drupal_set_message("you need to select a user from list or to add a new user","error");
+    form_error($form['new_user_name'], "");
+    form_error($form['new_user_email'], "");
+  }
+  else
+  {
+    if(!empty($form['user_id']['#value']))
+    {
+      if(!empty($form['new_user_name']['#value'])||!empty($form['new_user_email']['#value']))
+      {
+        drupal_set_message("you need to select a user from list or to add a new user, but you can't use both options","error");
+        form_error($form['new_user_name'], "");
+        form_error($form['new_user_email'], "");
+      }
+      
+    }
+    else
+    {
+      if(empty($form['new_user_name']['#value'])||user_validate_name($form['new_user_name']['#value'])||(bool) db_select('users')->fields('users', array('uid'))->condition('name', db_like($form['new_user_name']['#value']), 'LIKE')->range(0, 1)->execute()->fetchField())
+      {
+        form_error($form['new_user_name'], t('invalid username or already taken'));
+      }
+      if(empty($form['new_user_email']['#value'])||user_validate_mail($form['new_user_email']['#value'])||(bool) db_select('users')->fields('users', array('uid'))->condition('mail', db_like($form['new_user_email']['#value']), 'LIKE')->range(0, 1)->execute()->fetchField())
+      {
+        form_error($form['new_user_email'], t('invalid email or already taken'));
+      }
+    }
+  }
+  if($plot->name!=$form['name']['#value'])
+  {
+    $query = db_select("hmfl_plot","p")->fields("p",array('id'))->condition("p.development_id",$plot->development_id)->condition("p.name",$form['name']['#value']);
+    if($query->execute()->rowCount()>0)
+    {
+      form_error($form['name'], t('plot name is already used in this development'));
+    }
+  }
+}
+
+function hmfl_plot_submit($form, &$form_state)
+{
+  $plot = $form_state['plot'];
+
+  entity_form_submit_build_entity('hfml_plot', $plot, $form, $form_state);
+
+  if(!$plot->user_id)
+  {
+    if(!empty($form['new_user_name']['#value'])&&!empty($form['new_user_email']['#value']))
+    {
+      $password = user_password(8);
+      $fields = array(
+        'name' => $form['new_user_name']['#value'],
+        'mail' => $form['new_user_email']['#value'],
+        'pass' => $password,
+        'status' => 1,
+        'init' => 'email address',
+        'roles' => array(
+          DRUPAL_AUTHENTICATED_RID => 'authenticated user',
+        ),
+      );
+      $account = user_save('', $fields);
+      $account->password = $fields['pass'];
+      drupal_mail('user', 'register_no_approval_required', $form['new_user_email']['#value'], NULL, array('account' => $account), variable_get('site_mail', 'noreply@example.com'));
+      $plot->user_id = $account->uid;
+    }
+  }
+
+  try
+  {
+    if(!empty($plot->id))
+    {
+      drupal_write_record('hmfl_plot', $plot, 'id');
+      field_attach_update("hmfl_plot",$plot);
+      module_invoke_all('entity_update', $plot, 'hmfl_plot');
+
+    }
+    else
+    {
+      drupal_write_record('hmfl_plot', $plot);
+
+      field_attach_update("hmfl_plot",$plot);
+      module_invoke_all('entity_insert', $plot, 'hmfl_plot');
+    }
+  }
+  catch(Exception $e)
+  {
+    var_dump($e);
+    die();
+  }
+  if($plot->id)
+  {
+    $form_state['redirect'] = hmfl_plot_uri($plot);
+  }
+  else
+  {
+    $form_state['redirect'] = "development/{$plot->development_id}/plots";
+  }
+  drupal_set_message(t('Plot %title saved.', array('%title' => entity_label('hmfl_plot', $plot))));
+
+}
+
+function hmfl_plot_permissions_check($plot)
+{
+  if(user_access('access administration pages'))
+  {
+    //super admin
+    return true;
+  }
+
+  global $user;
+
+  if($user->uid == $plot->user_id)
+  {
+    return true; //owner
+  }
+  return hmfl_development_admin_check($plot->development_id);
+}
+
+function hmfl_plot_edit($form, &$form_state, $id)
+{
+  $plot = entity_load('hmfl_plot', array($id), array(), false);
+  if(!isset($plot[$id])||empty($plot[$id]))
+  {
+    drupal_set_message("No such plot","error");
+  }
+  else
+  {
+    $plot = $plot[$id];
+    if(hmfl_development_admin_check($plot->development_id))
+    {
+      return hmfl_plot_form($form,$form_state,$plot);
+    }
+    else
+    {
+      drupal_set_message("Access Denied","error");
+    }
+  }
+  return $form;
+}
+
+function hmfl_plot_confirm_delete($form, &$form_state, $pid)
+{
+  if(!$pid)
+  {
+    drupal_set_message("Invalid request","error");
+  }
+  else
+  {
+    $plot = entity_load('hmfl_plot', array(intval($pid)), array(), false);
+    if(!isset($plot[$pid]))
+    {
+      drupal_set_message("Invalid request","error");
+    }
+    else
+    {
+      $plot = $plot[$pid];
+      if(hmfl_development_admin_check($plot->development_id))
+      {
+        $form_state['plot'] = $plot;
+        return confirm_form($form,t('Are you sure you want to delete the %title plot?',array('%title' => $plot->name)),"development/{$plot->development_id}/plots",t('This action is not reversible'),t('Delete'),t('Cancel'));
+      }
+    }
+  }
+  return $form;
+}
+
+function hmfl_plot_confirm_delete_submit($form, &$form_state)
+{
+  $plot = $form_state['plot'];
+  entity_delete("hmfl_plot",$plot->id);
+  drupal_set_message("plot deleted");
+  $form_state['redirect'] = "development/{$plot->development_id}/plots";
+}
+
+function hmfl_plot_view($id)
+{
+  $plot = entity_load('hmfl_plot', array(intval($id)), array(), false);
+  if(!$plot||!isset($plot[$id]))
+  {
+    drupal_not_found();
+    return null;
+  }
+  $plot = $plot[$id];
+  if(!hmfl_plot_permissions_check($plot))
+  {
+    return false;
+  }
+  $plot->content = array();
+
+  $title = filter_xss($plot->name);
+  drupal_set_title($title);
+  field_attach_prepare_view(
+    'hmfl_plot',
+    array($plot->id => $plot),
+    "full"
+  );
+  entity_prepare_view('hmfl_plot', array($plot->id => $plot));
+
+  $plot->content += field_attach_view(
+      'hmfl_plot',
+      $plot, "full"
+  );
+ 
+  $plot->content += array(
+    "#title"     => "$title",
+    '#theme'     => 'hmfl_plot',
+    '#element'   => $plot,
+    '#view_mode' => 'full',
+    '#language'  => NULL,
+  );
+  return $plot->content;
+}
+
+function hmfl_plot_login_form()
+{
+  $form = array();
+  $result = db_query("select id,title from hmfl_development");
+  $developments = array();
+  while($row = $result->fetch())
+  {
+    $developments[$row->id] = $row->title;
+  }
+  $form['development'] = array(
+    '#type' => 'select',
+    "#required" => TRUE,
+    "#title" => "development",
+    "#options" => $developments,
+  );
+  
+  $form['plot'] = array(
+    '#type' => 'textfield',
+    '#required' => TRUE,
+    "#title"=>'plot',
+  );
+  $form['password'] = array(
+    '#type' => 'password',
+    '#required' => TRUE,
+    "#title"=>'password',
+  );
+  $form['actions'] = array(
+    '#weight' => 100,
+  );
+  $submit = array();
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Login'),
+    '#submit' => $submit + array('hmfl_plot_login_submit'),
+  );
+  $form['#theme'] = 'hmfl_plot_login_form';
+  return $form;
+}
+
+function hmfl_plot_login_submit($form,&$form_state)
+{
+  $query = db_select("hmfl_plot","p")->fields("u",array('name'));
+  $query->condition("p.development_id",$form['development']['#value'])->condition("p.name",$form['plot']['#value'])->join("users","u","u.uid=p.user_id");
+  $username = $query->execute()->fetchCol();
+  if(!$username)
+  {
+    $username = $form['plot']['#value'];
+  }
+  
+  if($uid = user_authenticate($username,$form['password']['#value']))
+  {
+    $account = user_load($uid);
+    if(in_array("authenticated user",$account->roles))
+    {
+      global $user;
+      $user = $account;
+      user_login_finalize($form_state);
+      drupal_goto(request_path());
+      return true;
+    }
+  }
+  return drupal_set_page_content(theme('hmfl_denied'));
+}
+
+function hmfl_plot_dashboard()
+{
+  global $user;
+  $count = db_query("select count(id) from hmfl_plot where user_id={$user->uid}")->fetchField();
+  if($count>1||!$count)
+  {
+    return hmfl_plot_list();
+  }
+  else
+  {
+    $id = db_query_range("select id from hmfl_plot where user_id={$user->uid}",0,1)->fetchField();
+    return hmfl_plot_view($id);
+  }
+}
+
+?>

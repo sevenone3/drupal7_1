@@ -1,0 +1,117 @@
+/* 
+    Document   : calender
+    Created on : Nov 21, 2012, 9:53:44 AM
+    Author     : SammaMax
+    Description:
+        Purpose of the stylesheet follows.
+*/
+body{
+    font-family: arial,sans-serif;
+}
+.cal_container{
+    padding: 13px;
+    border: 1px solid #cecece;
+}
+.calenderc{
+    border-collapse: separate;
+    width:100%;
+    font-size: 1em;
+    border-spacing: 0;
+    border: 1px solid #cecece;
+}
+.p_n_txt{
+    width: 70%;
+    float: left;
+}
+.p_n_txt h2{
+    font-size: 20px;
+    font-weight: bold;
+}
+.p_n_txt p{
+    text-align: justify;
+}
+.c_nav{
+    margin-bottom: 13px;
+}
+
+.c_nav a{
+    color:#50748A;
+    display: block;
+    min-width:60px;
+    font-weight: bold;
+}
+
+.c_nav table{
+    width: 100%;
+}
+.c_nav table td{
+    width:33%;
+    text-align: center;    
+    
+}
+.month_nav a{
+    float: left;
+}
+
+.year_nav a{
+    float: right;    
+}
+.cltitle{
+    font-size: 20px;
+    font-weight: bold;
+}
+.clear{
+    clear:both;
+}
+.calenderc th,.calenderc td{
+    border-bottom: 1px solid #cecece;
+    border-right: 1px solid #cecece;
+}
+.calenderc th.last,.calenderc td.last{
+    border-right:none;
+}
+.calenderc tr:last td{
+    border-bottom: none;
+}
+
+.closebtn{
+    text-decoration: none;
+    color:#181818;
+    display: block;
+    height: 22px;
+    background: url("../images/cal_close.png") no-repeat scroll right center;
+    padding-right: 25px;
+    text-align: right;
+    width: 20%;
+    float: right;
+}
+.day_cont{
+    min-height: 90px; 
+}
+
+.day_num{
+    float: right;
+    padding:2px 2px 0;    
+}
+
+.ev_cont{
+    padding-top: 5px;
+}
+
+.cevent{
+    background: #B4C2CF;
+    color:#000;
+    font-size: 12px;
+}
+.etitle,.etime,.emore{
+    display: block;
+}
+.emore{
+    text-align: right;
+}
+.prv_nxt_month_date{
+    color: #ccc;
+}
+
+
+

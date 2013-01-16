@@ -1,0 +1,41 @@
+<?php
+
+
+function hmfl_developer_schema() {
+  $schema = array();
+  
+  $schema = array(
+    'hmfl_developer'=> array(
+      'fields' => array(
+        'id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+        'title' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      ),
+      'primary key' => array('id')
+    ),
+    'hmfl_developer_admin' => array(
+      'fields' => array(
+        'developer_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE ),
+        'user_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      ),
+      'primary key' => array('developer_id','user_id'),
+      'indexes' => array('developer_id' => array('developer_id'),
+      ),
+    )
+  );
+  return $schema;
+}
+
+function hmfl_developer_install()
+{
+  $permissions = array('administrate hmfl developer', 'administrate hmfl development');
+  $role = new stdClass();
+  $role->name = "developer admin";
+  $role->weight = 1;
+  user_role_save($role);
+  user_role_grant_permissions($role->rid, $permissions);
+}
+
+function hmfl_developer_uninstall()
+{
+  user_role_delete("developer admin");
+}
