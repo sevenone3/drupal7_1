@@ -1,3 +1,4 @@
+﻿
 All Drupal code is Copyright 2001 - 2012 by the original authors.
 
 This program is free software; you can redistribute it and/or modify
