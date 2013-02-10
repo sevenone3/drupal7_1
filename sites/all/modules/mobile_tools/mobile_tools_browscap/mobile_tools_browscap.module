@@ -1,0 +1,186 @@
+<?php
+
+/**
+ * @file
+ * Integrate the device detection in Browscap with Mobile Tools
+ *
+ * @author Mathew Winstone <mwinstone@coldfrontlabs.ca>
+ */
+
+/**
+ * Device group activation callback.
+ *
+ * @param object $device_group
+ *  Device group to consider for activation
+ *
+ * @return boolean
+ *  Return TRUE if the redirect should occur, FALSE otherwise.
+ */
+function mobile_tools_browscap_activate($device_group) {
+
+  $browser = browscap_get_browser();
+  $redirect = FALSE;
+
+  // Get the redirect state
+  // Check for a match on the parent
+  $redirect = _mobile_tools_browscap_match_parent($browser, $device_group);
+  
+  // If no match, try the user agent specifically
+  if (FALSE === $redirect) {
+    $redirect = _mobile_tools_browscap_match_useragent($browser, $device_group);
+  }
+
+  // @todo continue cascade of any matchable items
+
+  return $redirect;
+}
+
+/**
+ * Implements hook_mobile_tools_device_detector_info().
+ */
+function mobile_tools_browscap_mobile_tools_device_detector_info() {
+  return array(
+    'name' => 'Browscap',
+    // @todo remove underscores from array keys
+    'form callback' => 'mobile_tools_browscap_activate_options_form',
+    'activation callback' => 'mobile_tools_browscap_activate',
+  );
+}
+
+/**
+ * Form callback function for mobile_tools_browscap_mobile_tools_device_detector_info().
+ *
+ * @param array $default
+ *  Form values saved by mobile_tools module.
+ * @return array
+ *  Addition to the mobile tools device group form.
+ */
+function mobile_tools_browscap_activate_options_form($default) {
+
+  $form['mobile_tools_browscap_parents'] = array(
+    '#type' => 'select',
+    '#multiple' => TRUE,
+    '#title' => t('Select parent browser agents for this group'),
+    '#description' => t("Match against the user agent's parent value."),
+    '#options' => mobile_tools_browscap_get_browscap_parents(),
+    '#default_value' => isset($default['mobile_tools_browscap_parents']) ? $default['mobile_tools_browscap_parents'] : '',
+    '#size' => 15,
+  );
+
+  $form['mobile_tools_browscap_user_agents'] = array(
+    '#type' => 'select',
+    '#multiple' => TRUE,
+    '#title' => t('Select user agents for this group'),
+    '#description' => t('Match against the user agent string.'),
+    '#options' => mobile_tools_browscap_get_browscap_user_agents(),
+    '#default_value' => isset($default['mobile_tools_browscap_user_agents']) ? $default['mobile_tools_browscap_user_agents'] : '',
+    '#size' => 15,
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_form_alter().
+ *
+ * Add support for Chosen when available.
+ * @see http://drupal.org/project/chosen
+ */
+function mobile_tools_browscap_form_mobile_tools_device_group_form_alter(&$form, &$form_state, $device_group = NULL) {
+  if (drupal_add_library('chosen', 'chosen')) {
+    $form['mobile_tools_browscap']['mobile_tools_browscap_user_agents']['#attributes']['data-placeholder'] = t('Select user agents');
+    $form['mobile_tools_browscap']['mobile_tools_browscap_parents']['#attributes']['data-placeholder'] = t('Select parent agents');
+    $form['mobile_tools_browscap']['#attached']['library'][] = array('chosen', 'chosen');
+    $form['mobile_tools_browscap']['#attached']['js'] = array(
+      drupal_get_path('module', 'mobile_tools_browscap') . '/mobile_tools_browscap.js' => array('type' => 'file'),
+    );
+  }
+}
+
+/**
+ * Create a mega options list of all user agents in the Browscap datagbase
+ *
+ * @return array
+ *  Return an array of user agents.
+ */
+function mobile_tools_browscap_get_browscap_user_agents() {
+  // @todo change to use database level sorting
+  // @todo see if there's a function in browscap to do this
+  $user_agent_data = db_select('browscap', 'b')
+    ->fields('b', array('useragent'))
+    ->orderBy('useragent', 'ASC')
+    ->execute()
+    ->fetchAll();
+
+  $rows = array();
+
+  if ($user_agent_data) {
+    foreach ($user_agent_data as $key => $agent) {
+      $rows[check_plain($agent->useragent)] = check_plain($agent->useragent);
+    }
+    return $rows;
+  }
+  else {
+    return array();
+  }
+}
+
+/**
+ * Get a list of parents of user agents
+ *
+ * @return array
+ *  Return an array of parents.
+ */
+function mobile_tools_browscap_get_browscap_parents() {
+  $parent_data = db_select('browscap', 'b')
+    ->fields('b', array('parent'))
+    ->groupBy('parent')
+    ->orderBy('parent', 'ASC')
+    ->execute()
+    ->fetchAll();
+  
+  // Check the parent data
+  if ($parent_data) {
+    foreach ($parent_data as $key => $parent) {
+      $rows[check_plain($parent->parent)] = check_plain($parent->parent);
+    }
+    return $rows;
+  }
+  else {
+    return array();
+  }
+}
+
+/**
+ * Perform the matching operation against the parent agent values
+ *
+ * @param array $browser [reference]
+ *  Browser definition
+ * @param object $device_group [reference]
+ *  Device group object
+ * @return boolean
+ *  Return TRUE if there is a match, FALSE otherwise.
+ */
+function _mobile_tools_browscap_match_parent(&$browser, &$device_group) {
+  // Check the parent value
+  $match = array_key_exists($browser['parent'], $device_group->detection_settings['mobile_tools_browscap']['mobile_tools_browscap_parents']);
+  
+  return $match;
+}
+
+/**
+ * Perform the matching operation against the user agent values
+ *
+ * @param array $browser [reference]
+ *  Browser definition
+ * @param object $device_group [reference]
+ *  Device group object
+ * @return boolean
+ *  Return TRUE if there is a match, FALSE otherwise.
+ */
+function _mobile_tools_browscap_match_useragent(&$browser, &$device_group) {
+  // Check raw useragent value
+  $match = array_key_exists($browser['useragent'], $device_group->detection_settings['mobile_tools_browscap']['mobile_tools_browscap_user_agents']);
+
+  return $match;
+}

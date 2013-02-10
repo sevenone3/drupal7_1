@@ -1,0 +1,19 @@
+name = Mobile Tools Context
+description = Define contextual conditions and reactions for mobile devices. Works with both CTools access plugins and the Context module.
+core = 7.x
+package = Mobile Tools
+
+files[] = mobile_tools_context.module
+files[] = mobile_tools_context.test
+files[] = plugins/access/is_device_group.inc
+files[] = mobile_tools_context.condition_device_group.inc
+
+dependencies[] = mobile_tools
+dependencies[] = context
+
+; Information added by drupal.org packaging script on 2012-08-08
+version = "7.x-3.x-dev"
+core = "7.x"
+project = "mobile_tools"
+datestamp = "1344386061"
+

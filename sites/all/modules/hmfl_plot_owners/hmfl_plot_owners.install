@@ -1,0 +1,19 @@
+<?php
+
+function hmfl_plot_owners_schema() {
+$schema = array();
+  $schema = array(
+      'hmfl_plot_owners'=> array(
+	  'fields' => array(
+        'plot_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+        'owner_name' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+      ),
+	   'indexes' => array('plot_id' => array('plot_id')),
+	 ),
+);
+ return $schema;
+
+}
+
+
+

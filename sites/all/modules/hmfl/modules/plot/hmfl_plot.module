@@ -11,7 +11,7 @@ function hmfl_plot_menu()
       'type' =>  MENU_LOCAL_TASK,
       'access arguments' => array(
             'access administration pages'
-        ),AL_TASK,
+        ),
       'weight' => -10,
     ),
     'admin/hmfl/plot/group'=> array(
@@ -139,12 +139,22 @@ function hmfl_plot_menu()
       'access arguments' => array(1),
       'type' => MENU_LOCAL_TASK,
     ),
-
+   
+  'plot/client-pdf-upload' => array(
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('hmfl_plot_client_pdf_upload'),
+      'access callback' => 'hmfl_plot_client_check',
+      'type' => MENU_LOCAL_TASK,
+    ),
+ 
+  
   );
   return $items;
 }
 
-
+function hmfl_plot_client_check() {
+  return TRUE;
+}
 
 function hmfl_plot_uri($entity)
 {
@@ -447,7 +457,7 @@ function hmfl_plot_group_form($form, &$form_state, $plot_group)
   $form['pdf'] = array(
     "#type" => "select",
     '#multiple' => TRUE,
-    "#required" => TRUE,
+    "#required" => FALSE,
     "#title"=> "PDF",
     "#options"=> $pdfs,
     "#default_value"=>$plot_group->pdf
@@ -610,6 +620,7 @@ function hmfl_plot_list($did=0)
     $query =  db_select('hmfl_plot', 'p')->extend('PagerDefault');
     $query->fields('p', array('id'));
     $query->condition("p.development_id",$did);
+    $query->orderBy('id','DESC');
     $result = $query->limit(10)->execute();
     foreach($result as $plot)
     {
@@ -705,7 +716,7 @@ function hmfl_plot_bulk_add_form($form, &$form_state, $id)
   {
     $groups[$row->id] = $row->address;
   }
-
+    
   $form['group'] = array(
     "#type" => "select",
     "#required" => TRUE,
@@ -744,6 +755,8 @@ function hmfl_plot_bulk_add_form($form, &$form_state, $id)
     '#value' => t('Save Plot'),
     '#submit' => $submit + array('hmfl_plot_bulk_add_submit'),
   );
+  
+  
   $form['#validate'][] = "hmfl_plot_bulk_add_validate";
   return $form;
 }
@@ -771,7 +784,7 @@ function hmfl_plot_bulk_add_submit($form, &$form_state)
   $developer = $developer[$development->developer_id];
   for($i=$start;$i<=$form['end']['#value'];$i++)
   {
-    $name = $form['name_prefix']['#value']." $i";
+    $name =  $i." ".$form['name_prefix']['#value'];
     try
     {
       $plot = entity_create("hmfl_plot",array("id"=>"","development_id"=>$development->id, "name"=>$name,"user_id"=>"","group_id"=>$form['group']['#value']));
@@ -1091,6 +1104,81 @@ function hmfl_plot_dashboard()
     $id = db_query_range("select id from hmfl_plot where user_id={$user->uid}",0,1)->fetchField();
     return hmfl_plot_view($id);
   }
+}
+
+function hmfl_plot_client_pdf_upload($form ,&$form_state) {
+  $form = array();
+  
+  $form['client-pdf-desc'] = array(
+   '#type' => 'textfield',
+   '#title' => t('Description'),
+   '#required' => TRUE,
+  );
+  $form['client-pdf-upload'] = array(
+   '#title' => t('Select Pdf'),
+   '#type' => 'managed_file',
+   '#upload_location'    => "public://pdf/",
+   "#upload_validators"  => array("file_validate_extensions" => array("pdf")),
+   '#required' => TRUE,
+  );
+  $form['sumbit'] = array(
+   '#type'=> 'submit',
+   '#value'=>t('Submit'),
+   '#submit' => array('hmfl_plot_client_pdf_upload_submit'),
+   );
+
+ 
+
+    
+return $form;
+}
+
+function hmfl_plot_get_pdf_list($plot_id) {
+ 
+  $plot_group = $plot_group[$plot_id];
+  $query = db_select("hmfl_plot_pdf","g")->fields("p",array("id","title","fid"));
+  $query->join("hmfl_development_pdf","p","p.id=g.pdf_id");
+  $query->condition("g.plot_id",$plot_id);
+  $plot_group->pdf = $query->execute()->fetchAll(PDO::FETCH_ASSOC);
+  return $plot_group;
+ 
+ 
+
+}
+
+function hmfl_plot_client_pdf_upload_submit($form, &$form_state) {
+  global $user;
+  $plot_id = arg(1);
+  $result = db_query("SELECT development_id FROM hmfl_plot WHERE id = '$plot_id'");
+  foreach ($result as $res) {
+    $dev_id = $res->development_id;
+  }
+	
+  $file = file_load($form_state['values']['client-pdf-upload']);
+  $file->status = FILE_STATUS_PERMANENT;
+  $file->filename = $form_state['values']['client-pdf-desc'];
+  file_save($file);
+  file_usage_add($file, 'hmfl_development', 'hmfl_development', $file->fid);
+ 
+ db_insert('hmfl_development_pdf')
+       ->fields(array(
+       'development_id' => $dev_id,
+       'user_id' => $user->uid,
+       'title' => $file->filename,
+	   'fid' => $file->fid,
+	 ))
+     ->execute(); 
+ $max = db_query("SELECT MAX(id) as id FROM hmfl_development_pdf");
+  foreach ($max as $m) {
+    $pdf_id = $m->id;
+  }
+ db_insert('hmfl_plot_pdf')
+       ->fields(array(
+       'plot_id' => $plot_id,
+       'pdf_id' => $pdf_id,
+	 ))
+     ->execute();   	 
+  drupal_goto('plot/'.$plot_id);
 }
 
 ?>

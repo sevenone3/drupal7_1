@@ -360,3 +360,6 @@ td.td1,td.td2,td.td3,td.td4{
 #lgform .description {
   display: none;
 }
+.page-find-nearby-places .box3 {
+  height: auto !important;
+}

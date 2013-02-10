@@ -1,7 +1,9 @@
 <?php
   $element = $page['content']['system_main']['#element'];
+  global $base_url;
   $group = hmfl_plot_group_load($element->group_id);
 //   var_dump($group);
+$ppid = arg(1);
   $development = entity_load("hmfl_development",array($element->development_id));
   $development = !empty($development)?$development[$element->development_id]:new stdClass;
 //   var_dump($development);
@@ -10,20 +12,52 @@
   $developer = entity_load("hmfl_developer",array($development->developer_id));
   $developer = !empty($developer)?$developer[$development->developer_id]:new stdClass;
   $development->address = $development->field_development_address['und'][0];
+  $owners = db_query("SELECT owner_name as name FROM hmfl_plot_owners WHERE plot_id ='$ppid'");
+   foreach ($owners as $owner) {
+     $owner_name = $owner->name;
+   } 
+  
+  $faqs = db_query("SELECT nid as nid FROM node WHERE type = 'faq' AND status = 1");
+   foreach ($faqs as $faq) {
+    $node = node_load($faq->nid);
+    $faq_content .= '
+                  <li id="faqq" class="span-q">
+                   <a href="javascript:void(0);">'.t($node->title).'</a>
+                     <div class="content-fsq invisible">'.t($node->field_answer['und']['0']['value']).'</div>
+                  </li>';
+   }
+
+ module_load_include('inc', 'contact', 'contact.pages');
+ $cal = module_invoke('views','block_view','events-block');
 ?>
 
 <?php
-global $user;
+global $user,$base_url;
 $plot_id = arg(1);
 $result = db_query("SELECT uid as uid FROM hmfl_plot_temporary_password WHERE id = '$plot_id'");
 foreach ($result as $res) {
   if ($user->uid != $res->uid) {
-     $flag = 1;
+    if (!in_array('administrator', array_values($user->roles)) || !in_array('developer admin', array_values($user->roles))) {
+	 $flag = 1;
   }
 }
 if ($flag) {
   drupal_goto('node/123');
-}   
+ }   
+}
+?>
+
+
+
+<?php
+$id = $_SESSION['id'];
+$result = db_query("SELECT * FROM hmfl_styling WHERE developer_id = '$id'");
+  foreach($result as $res) {
+    if($res->top_banner) {
+	  $ban = explode('/',$res->top_banner);
+	}
+  }
+$file = file_load($ban[0]);
 ?>
 
 <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
@@ -109,7 +143,7 @@ $(document).ready(function(){
     $(".pageRight .src_address").click(function(){
       map.setCenter(marker.getPosition());
     });
-    $(".btnDocs,.btnLocal, .btnTransport").click(function(){
+    $(".btnDocs,.btnAnnounce,.btnCCare,.btnLocal, .btnTransport").click(function(){
       $(".widgets .active").removeClass("active");
       $(".pageRight>div").hide();
       $()
@@ -127,41 +161,57 @@ $(document).ready(function(){
     directionsDisplay.setPanel($("#dir-container").get(0));
   });
 
-
+      $('.span-q a').click(function(){ 
+         $($(this).parent()).children('div').toggleClass('invisible');
+      
+      });  
+  
 });
 </script>
-    <link rel="stylesheet" type="text/css" href="<?php print base_path().path_to_theme(); ?>/css/main_homeowner.css" />
+  <?php global $base_url; ?>  
+<link rel="stylesheet" type="text/css" href="<?php print base_path().path_to_theme(); ?>/css/main_homeowner.css" />
+	<link rel='stylesheet' type='text/css' href='<?php print $base_url; ?>/style.php' />
+
  <div class="page">
   <div class="header">
     <div class="headerPannel">
       <div class="title">myHomefiles</div>
            <div class="short-menu fright">
-                     <a href="<?php print '/'.request_path(); ?>">Home</a> | <a href="/user/logout">Logout</a>
-                            </div>
+            <a href="<?php print '/'.request_path(); ?>">Home</a> | <a href="/user/logout">Logout</a>
+           </div>
     </div>
-    <div class='banner'>
-        <img style="height:250px;width:960px" src="<?php echo file_create_url($development->field_development_logo['und'][0]['uri']); ?>" />
-    </div>
-  </div>
+    
+      <div class="banner-logo">
+      <div style="height: 250px;width: 955px;background-image: url('<?php echo file_create_url($file->uri); ?>');
+      <?php if(!$ban[0]): ?>background-color: #<?php print $ban[1]; ?>;<?php endif; ?>background-position: center;background-repeat: no-repeat;background-size: 955px 250px;"></div>
+   
+      <div class='development-logo'>
+        <div style="height: 210px;width: 270px;background-image: url('<?php echo file_create_url($development->field_development_logo['und'][0]['uri']); ?>');
+      <?php if(!variable_get('banner_uri',NULL)): ?>background-color: #<?php print variable_get('devel_back_color',NULL); ?>;<?php endif; ?>background-position: center;background-repeat: no-repeat;background-size: 270px 210px;"></div>
+      </div>
+   </div>
+    
   <div class="pageContent">
     <div class="pageLeft">
       <ul class="widgets">
         <li><a href="javascript:void(0)" class="btn btnDocs active" rel="plot_info"><img src="<?php print base_path().path_to_theme(); ?>/images/icon1.png" alt="btn" /><span>View your Home Owner Documents</span></a></li>
- <!--       <li><a href="#" class="btn btnCCare"><img src="<?php print base_path().path_to_theme(); ?>/images/icon11.png" alt="btn" /><span>Upload your own documents</span></a></li>-->
-        <li><a href="<?php echo url("contact"); ?>" class="btn btnCCare"><img src="<?php print base_path().path_to_theme(); ?>/images/icon2.png" alt="btn" /><span>Customer Care</span></a></li>
+ <!--       <li><a href="#" class="btn btnCCare "><img src="<?php print base_path().path_to_theme(); ?>/images/icon11.png" alt="btn" /><span>Upload your own documents</span></a></li>-->
+        <li><a href="javascript:void(0)" class="btn btnCCare" rel="customer_care"><img src="<?php print base_path().path_to_theme(); ?>/images/icon2.png" alt="btn" /><span>Customer Care</span></a></li>
+
         <li><a href="javascript:void(0)" class="btn btnTransport" rel="plot_transport"><img src="<?php print base_path().path_to_theme(); ?>/images/icon3.png" alt="btn" /><span>Transport</span></a></li>
         <li><a href="javascript:void(0)" class="btn btnLocal" rel="plot_location"><img src="<?php print base_path().path_to_theme(); ?>/images/icon4.png" alt="btn" /><span>Local Information</span></a></li>
-        <li><a href="<?php echo url("announcements"); ?>" class="btn btnEvents"><img src="<?php print base_path().path_to_theme(); ?>/images/icon5.png" alt="btn" /><span>Announcements and Events</span></a></li>
+        <li><a href="javascript:void(0)" class="btn btnAnnounce" rel="announcements"><img src="<?php print base_path().path_to_theme(); ?>/images/icon5.png" alt="btn" /><span>Announcements and Events</span></a></li>
         <li><a href="<?php echo url("forum"); ?>" class="btn btnForum"><img src="<?php print base_path().path_to_theme(); ?>/images/icon6.png" alt="btn" /><span>Message Forum</span></a></li>
-        <li><a href="<?php echo url("faq"); ?>" class="btn btnHelp"><img src="<?php print base_path().path_to_theme(); ?>/images/icon7.png" alt="btn" /><span>Help and FAQ</span></a></li>
+        <li><a href="javascript:void(0)" class="btn btnCCare" rel="customer_care"><img src="<?php print base_path().path_to_theme(); ?>/images/icon7.png" alt="btn" /><span>Help and FAQ</span></a></li>
         <li>
           <div class="userInfo">
-            <div class="userInfoTitle">Your Details</div>
+            <div class="title-plot">Your Details</div>
             <div class="userInfoContent">
-                <?php echo $user_profile->name;?><br/>
+                <div class="body_text_plot"><?php echo $owner_name;?><br/>
                 <?php echo $user_profile->mail;?><br /><br />
                 <?php 
                 echo "{$group->address}, {$element->name}";?>
+                </div>
             </div>
           </div>
         </li>
@@ -169,25 +219,47 @@ $(document).ready(function(){
     </div>
     <div class="pageRight">
       <div id="plot_info">
-      <img style="max-height:200px;max-width:200px" src="<?php echo file_create_url($developer->field_developer_logo['und'][0]['uri']); ?>" />
-      <div class="title">
-        <h3>Your home owner documents for:</h3>
-        <h3><?php echo $group->address; ?></h3>
+        <div class="developer_logo">
+       <img style="max-height:150px;max-width:200px" src="<?php echo file_create_url($developer->field_developer_logo['und'][0]['uri']); ?>" />
+         </div>
+      <div class="title-plot">
+        Upload your home owner documents for:<br />
+        <?php echo $group->address; ?>
       </div>
-      <p>In this section you can download, view, and print your Home Owners Manual and various other documents that have been made available to you by <?php echo $developer->title; ?></p>
-      <p>For help on downloading and using your documents take a look at <a href="#">How to use Homefiles</a></p>
+      <span class="body_text_plot"><br />In this section you can download, view, and print your Home Owners Manual and various other documents that have been made available to you by <?php echo $developer->title; ?><br /><br />
+      For help on downloading and using your documents take a look at </span><span class="link_plot"><a href="#">How to use Homefiles</a></span>
       <ul class="fileList">
-        <?php foreach($group->pdf as $pdf): ?>
+        <?php print render(drupal_get_form('hmfl_plot_client_pdf_upload')); ?>
+       <?php $pdfs = hmfl_plot_get_pdf_list(arg(1)); ?>
+        <br/><br/>Files you have uploaded:<br/> <br/> 
+
+        <?php foreach($pdfs->pdf as $pdf): ?>
         <?php $file=file_load($pdf['fid']); ?>
-          <li><a href="<?php echo file_create_url($file->uri); ?>"> <?php echo $pdf['title']; ?><span class="size"><?php echo ceil($file->filesize/1048576);?>Mb</span></a></li>
+          <?php $file_link = $base_url.'/sites/all/libraries/pdf.js/web/viewer.html?file='.file_create_url($file->uri); ?>
+          <li><a href="<?php echo $file_link; ?>"> <?php echo $pdf['title']; ?><span class="size"><?php echo ceil($file->filesize/1048576);?>Mb</span></a></li>
         <?php endforeach; ?>
       </ul>
-      <div class="title">
-        <h3>Advice on policy number</h3>
+    
+      <div class="title-plot">
+        Advice on policy number
+      </div><br />
+      <span class="body_text_plot">To save yourself time and hassle it is a good idea to store your account & policy numbers online so that you can access them from anywhere at any time.<br /><br />
+      To do this simply follow the <span class="link_plot"><a href="#">My Details</a></span> link at the top of this page</span>>
       </div>
-      <p>To save yourself time and hassle it is a good idea to store your account & policy numbers online so that you can access them from anywhere at any time.</p>
-      <p>To do this simply follow the <a href="#">My Details</a> link at the top of this page</p>
-      </div>
+      <div id="customer_care" style="display: none;">
+   <ul>
+       <?php print $faq_content; ?>
+       <li id="faqq" class="span-q">
+                  <a href="<?php print "javascript:void(0);";?>"><?php print t("Cant find the answer? Contact Us"); ?></a>
+                  <div class="content-fsq invisible"><?php print drupal_render(drupal_get_form('contact_site_form')); ?></div>
+       </li>
+</ul>
+   
+  </div>
+
+<div id="announcements" style="display: none;">
+ <?php print render($cal); ?>
+</div>
       <div id="plot_transport" style="display:none">
         <div id="map" style="height:400px;width:550px;float:right;"></div>
         <div class="map_controlls" style="margin-top:20px;float:right;" >

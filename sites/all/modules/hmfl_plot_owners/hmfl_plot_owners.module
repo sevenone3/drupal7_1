@@ -1,0 +1,88 @@
+<?php
+
+function hmfl_plot_owners_menu() {
+  $items = array(
+   'development/%/plot-owners' => array(
+      'title' => 'Plot Owners',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('hmfl_plot_owners_form',1),
+        'access callback' => 'hmfl_admin_access_check',
+        'type' => MENU_LOCAL_TASK,
+     ),
+ );
+  return $items;
+}
+
+
+function hmfl_admin_access_check() {
+  global $user;
+
+ if (in_array('developer admin',$user->roles) || in_array('development admin',$user->roles) || in_array('administrator',$user->roles)) {
+    return TRUE;
+}
+}
+  
+function hmfl_plot_owners_form($form , &$form_state,$id) {
+  $form = array();
+
+  $form['owner'] = array(
+   '#type' => 'textfield',
+   '#title' => t("Owner's name"),
+   '#required' => TRUE,
+  );
+
+  $form['owner_plot'] = array(
+   '#type' => 'select',
+   '#title' => t('Plot'),
+   '#options' => hmfl_plot_owners_get_plot_list($id),
+   '#required' => TRUE,
+  );
+
+  $form['submit'] = array(
+   '#type' => 'submit',
+   '#value' => t('Save'),
+   '#submit' => array('hmfl_plot_owners_form_submit'),
+  );
+
+return $form;
+
+}
+
+function hmfl_plot_owners_get_plot_list($id) {
+  $list = array();
+  $result = db_query("SELECT id,name FROM hmfl_plot WHERE development_id = '$id'");
+   foreach ($result as $res) {
+     $list[$res->id] = $res->name;
+   }
+ return $list;
+}
+  
+function hmfl_plot_owners_form_submit($form , &$form_state) {
+  $plot_id = $form_state['values']['owner_plot'];
+  $owner = $form_state['values']['owner'];
+  
+$result = db_query("SELECT plot_id FROM hmfl_plot_owners WHERE plot_id = '$plot_id'")->rowCount();
+   
+   if($result > 0) {
+        db_update('hmfl_plot_owners')
+         ->fields(array(
+          'plot_id' => $plot_id,
+          'owner_name' => $owner,
+         ))
+         ->condition('plot_id', $plot_id, '=')
+         ->execute(); 
+        drupal_set_message("Owner updated");
+    }
+     else {
+	db_insert('hmfl_plot_owners')
+         ->fields(array(
+          'plot_id' => $plot_id,
+          'owner_name' => $owner,
+         ))
+         ->execute();
+        drupal_set_message("Owner assigned");
+   }
+   
+}
+
+?>

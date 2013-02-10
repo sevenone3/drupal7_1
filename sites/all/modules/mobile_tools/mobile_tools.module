@@ -1,0 +1,886 @@
+<?php
+/**
+ * @file
+ * Functionality to ease the creation of mixed device environments.
+ *
+ * Create "device groups" and allow different settings for each including
+ * different themes, front page, views displays and more.
+ *
+ * For more documentation and examples please go to http://drupal.org/node/459686
+ * @todo update the documentation on that page for the new Drupal 7 version
+ * @todo update the documentation on that page to be complete for Drupal 6
+ */
+
+define('MOBILE_TOOLS_SWITCH_LINK_TEXT', variable_get('mobile_tools_switch_link_text', 'View @device site'));
+define('MOBILE_TOOLS_FLAG_DEFAULT_SITE_THEME', '0');
+define('MOBILE_TOOLS_PURL_PROVIDER', 'mobile_tools');
+define('MOBILE_TOOLS_PURL_PROVIDER_SKIP_REDIRECT', 'mobile_tools_skip_redirect');
+define('MOBILE_TOOLS_ENABLE_VIEW_MODES', variable_get('mobile_tools_enable_view_modes', FALSE));
+define('MOBILE_TOOLS_REDIRECT_SERVER_SIDE', 'server');
+define('MOBILE_TOOLS_REDIRECT_CLIENT_SIDE', 'client');
+
+/**
+ * Prefix added to all device group definitions
+ */
+define('MOBILE_TOOLS_DEVICE_GROUP_PREFIX', 'mobile_tools_');
+
+
+// Core API hook implementations
+
+/**
+ * Implements hook_help().
+ */
+function mobile_tools_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#mobile_tools':
+      // @todo change the link to the new documentation page for 3.x version
+      return '<p>' . t('Visit the !documentation for more info', array('!documentation' => l('documentation page', 'http://drupal.org/node/459686'))) . '<p>';
+  }
+}
+
+/**
+ * Implements hook_permission().
+ */
+function mobile_tools_permission() {
+  return array(
+    'administer mobile tools' => array(
+      'title' => t('Administer Mobile Tools'),
+      'description' => t('Administer the Mobile Tools module.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function mobile_tools_menu() {
+  $items['admin/config/system/mobile-tools'] = array(
+    'title' => 'Mobile Tools',
+    'description' => 'Configure how Drupal must behave for mobile devices.',
+    'access arguments' => array('administer mobile tools'),
+    'page callback' => 'mobile_tools_device_groups_list',
+    'file' => 'mobile_tools.admin.inc',
+  );
+  $items['admin/config/system/mobile-tools/settings'] = array(
+    'title' => 'Settings',
+    'description' => 'Global settings for Mobile Tools',
+    'access arguments' => array('administer mobile tools'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mobile_tools_admin_settings_form'),
+    'file' => 'mobile_tools.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 10,
+  );
+
+  $items['admin/config/system/mobile-tools/list'] = array(
+    'title' => 'Device Groups',
+    'description' => 'Configure how Drupal must behave for mobile devices.',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+
+  $items['admin/config/system/mobile-tools/add'] = array(
+    'title' => 'Add Device Group',
+    'description' => 'Configure how Drupal must behave for mobile devices.',
+    'access arguments' => array('administer mobile tools'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mobile_tools_device_group_form'),
+    'type' => MENU_LOCAL_ACTION,
+    'file' => 'mobile_tools.admin.inc',
+  );
+
+  $items['admin/config/system/mobile-tools/edit/%mobile_tools_device_group'] = array(
+    'title' => 'Edit Device Group',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mobile_tools_device_group_form', 5),
+    'access arguments' => array('administer mobile tools'),
+    'file' => 'mobile_tools.admin.inc',
+  );
+
+  $items['admin/config/system/mobile-tools/delete/%mobile_tools_device_group'] = array(
+    'title' => 'Delete Device Group',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mobile_tools_device_group_delete_confirm', 5),
+    'access arguments' => array('administer mobile tools'),
+    'file' => 'mobile_tools.admin.inc',
+  );
+
+  // @todo add hook_menu argument load function for %mobile_tools_device_group
+
+  return $items;
+}
+
+/**
+ * Implements hook_init().
+ *
+ * Performs device redirection as required
+ */
+function mobile_tools_init(){
+  // If redirection is on, check if any device groups want to redirect, and if
+  // so, take the first one by weight.
+  // @todo ensure the javascript based redirection doesn't trigger
+  // the code below
+  if (!variable_get('mobile_tools_enable_redirection', FALSE) or mobile_tools_redirection_disabled()) {
+    return;
+  }
+  
+  // @todo add redirection skip functionality
+
+  // Get list of device groups
+  $device_groups = mobile_tools_device_group_load_all();
+
+  // Get current device group for comparison
+  $active_device_group = mobile_tools_get_active_device_group();
+  
+  // Sort into buckets by weight
+  foreach($device_groups as $device_group) {
+    $tmp[$device_group->weight][$device_group->dgid] = $device_group;
+  }
+  sort($tmp, SORT_NUMERIC);
+  $device_groups = $tmp;
+
+  // Do a little cleanup
+  unset($tmp);
+  unset($device_group);
+  
+  // Check each in ascending order if it wants to redirect
+  foreach($device_groups as $weight => $groups) {
+    foreach($groups as $device_group) {
+      if (!empty($device_group->detector) and !empty($device_group->detection_settings[$device_group->detector]['activation callback'])) {
+        if (isset($active_device_group->dgid) and $active_device_group->dgid == $device_group->dgid) {
+          // The active device group is the highest ordered group with redirection
+          // enabled. Which means we don't have to do anything.
+          return;
+        }
+        else {
+          // Check for redirection
+          if (call_user_func($device_group->detection_settings[$device_group->detector]['activation callback'], $device_group)) {
+            mobile_tools_device_redirect($device_group);
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function mobile_tools_block_info() {
+  $blocks = array();
+
+  $blocks['mobile_tools'] = array(
+    'info' => t('Mobile Tools message block'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function mobile_tools_block_view($delta) {
+  $block = array();
+  if ($delta == "mobile_tools") {
+    $block['content'] = mobile_tools_block_message();
+  }
+  return $block;
+}
+
+/**
+ * Implements hook_html_head_alter().
+ */
+function mobile_tools_html_head_alter(&$head_elements) {
+  //$site = mobile_tools_get_active_device_group();
+
+  // @todo change to use device group specific settings
+
+  /* if (variable_get('mobile_tools_add_header', 1) && $site == 'mobile') {
+    // Add the viewport settings
+    $head_elements['viewport'] = array(
+      '#type' => 'html_tag',
+      '#tag' => 'meta',
+      '#attributes' => array(
+        'name' => 'viewport',
+        'content' => 'user-scalable=no, width=device-width, maximum-scale=1.0',
+      ),
+    );
+
+    // Add the iOS web app flag
+    $head_elements['apple_mobile_web_app_capable'] = array(
+      '#type' => 'html_tag',
+      '#tag' => 'meta',
+      '#attributes' => array(
+        'name' => 'apple-mobile-web-app-capable',
+        'content' => 'yes',
+      ),
+    );
+
+    // Add the handheld flag
+    $head_elements['HandheldFriendly'] = array(
+      '#type' => 'html_tag',
+      '#tag' => 'meta',
+      '#attributes' => array(
+        'name' => 'HandheldFriendly',
+        'content' => 'true',
+      ),
+    );
+  }*/
+
+}
+
+/**
+ * Implements of hook_entity_info_alter()
+ *
+ * We provide new build modes for all entities
+ */
+function mobile_tools_entity_info_alter(&$entity_info) {
+  // Check if view modes is enabled
+  // @todo do we need some kind of static cache on the view modes?
+  if (MOBILE_TOOLS_ENABLE_VIEW_MODES) {
+
+    $device_groups = mobile_tools_device_group_load_all();
+
+    foreach ($entity_info as $entity_type => $entity) {
+      foreach ($device_groups as $device_group) {
+        $entity_info[$entity_type]['view modes'][$device_group->dgid] = array(
+          'label' => $device_group->title,
+          'custom settings' => FALSE,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function mobile_tools_form_system_performance_settings_alter(&$form, &$form_state) {
+  if (isset($form['caching']['cache'])) {
+    if (!empty($form['caching']['cache']['#description'])) {
+      $form['caching']['cache']['#description'] .= t('Please note that page caching will only work for pages where no device group is active when using the default Drupal database cache.');
+    }
+    else {
+      $form['caching']['cache']['#description'] = t('Please note that page caching will only work for pages where no device group is active when using the default Drupal database cache.');      
+    }
+
+  }
+}
+
+/**
+ * Implements hook_modules_disabled().
+ */
+function mobile_tools_modules_disabled($modules) {
+  // Check if there are any device detector modules left.
+  // If not, disable the feature.
+  $detectors = _mobile_tools_get_device_detectors(TRUE);
+  
+  if (empty($detectors)) {
+    variable_set('mobile_tools_enable_redirection', FALSE);
+    drupal_set_message(t('Device redirection is disabled. There are no more device detector modules enabled.'), 'warning');
+  }
+}
+
+// Contrib API hook implementations
+
+/**
+ * Implements hook_ctools_plugin_api().
+ */
+function mobile_tools_ctools_plugin_api($module, $api) {
+  if ($module == 'mobile_tools' && $api == 'default_mobile_tools_device_group') {
+    return array('version' => 1);
+  }
+  elseif ($module == 'spaces' && $api = 'plugins') {
+    return 'plugins';
+  }
+  elseif ($module == 'spaces' && $api == 'spaces') {
+    return array('version' => 3);
+  }
+}
+
+/**
+ * Fetches all device groups from the database
+ */
+function mobile_tools_device_group_load_all() {
+  ctools_include('export');
+  $device_groups = ctools_export_crud_load_all('mobile_tools_device_group');
+  return $device_groups;
+}
+
+/**
+ * Fetches the given option set and returns it as an object or NULL, if no set
+ * could be found.
+ *
+ * @param string $dgid
+ *  Device group ID
+ * @return object
+ *  Returns a device group object.
+ */
+function mobile_tools_device_group_load($dgid) {
+  ctools_include('export');
+  $device_group = ctools_export_crud_load('mobile_tools_device_group', $dgid);
+  return $device_group;
+}
+
+/**
+ * Checks whether an option set with the given name already exists.
+ *
+ * @param string $dgid
+ *  Device group ID
+ * @return boolean
+ *  Returns TRUE if the device group exists, FALSE otherwise.
+ */
+function mobile_tools_device_group_exists($dgid) {
+  ctools_include('export');
+  return (ctools_export_crud_load('mobile_tools_device_group', $dgid) !== NULL);
+}
+
+/**
+ * Saves the given option set to the database.
+ *
+ * Set the $new flag if it is a new entry.
+ *
+ * @param object $device_group
+ *  Device group to save to the database
+ * @param boolean $new [optional]
+ *  New entry flag
+ * @return object
+ *  Returns the saved device group.
+ */
+function mobile_tools_device_group_save($device_group, $new = FALSE) {
+  // Create the appropriate link to themekey
+  if (module_exists('themekey')) {
+
+    if ($device_group->theme != MOBILE_TOOLS_FLAG_DEFAULT_SITE_THEME) {
+
+      // Ensure the ThemeKey functions are available
+      module_load_include('inc', 'themekey', 'themekey_build');
+
+      $themekey = _mobile_tools_prepare_themekey_rule($device_group);
+
+      if (!$new && !is_null($device_group->themekey_id)) {
+        // Load the existing themekey rule ID
+        $themekey['id'] = $device_group->themekey_id;
+      }
+
+      // Save the rule to themekey database
+      // @todo lock the themekey rule from being edited
+      themekey_rule_set($themekey, 'mobile_tools');
+
+      // Add a reference to the themekey rule to the device group
+      // @todo add validation that the save worked
+      $device_group->themekey_id = $themekey['id'];
+    }
+  }
+  ctools_include('export');
+  return ctools_export_crud_save('mobile_tools_device_group', $device_group);
+}
+
+/**
+ * Deletes the given option set from the database.
+ */
+function mobile_tools_device_group_delete($device_group) {
+  // Clean up the themekey rules if required
+  if (module_exists('themekey')) {
+    if (!is_null($device_group->themekey_id)) {
+      module_load_include('inc', 'themekey', 'themekey_build');
+
+      themekey_rule_del($device_groupd->themekey_id);
+    }
+  }
+
+  ctools_include('export');
+  ctools_export_crud_delete('mobile_tools_device_group', $device_group);
+}
+
+/**
+ * Implements hook_purl_provider().
+ */
+function mobile_tools_purl_provider() {
+  $items = array();
+
+  // Create a purl provider entry for device groups
+  $items[MOBILE_TOOLS_PURL_PROVIDER] = array(
+    'name' => t('Device Group'),
+    'description' => t('Active Device group'),
+    'callback' => 'mobile_tools_activate_device_group',
+  );
+
+  // Check for the session api module
+  if (module_exists('session_api')) {
+    $description = t('When activated, automatic redirection is disabled.');
+  }
+  else {
+    $description = t('Enable the !session_api module to use the skip redirection functionality.', array('!session_api' => l('Session API', 'http://drupal.org/project/session_api')));
+  }
+
+  $items[MOBILE_TOOLS_PURL_PROVIDER_SKIP_REDIRECT] = array(
+    'name' => t('Skip Redirect'),
+    'description' => $description,
+    'callback' => 'mobile_tools_skip_redirect',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_purl_modifiers().
+ */
+function mobile_tools_purl_modifiers() {
+  // Load the device groups
+  $device_groups = mobile_tools_device_group_load_all();
+  // Create the modifiers container
+  $modifiers = array();
+
+  // Each device group gets a modifier associated to it
+  foreach ($device_groups as $device_group) {
+    $modifiers[MOBILE_TOOLS_PURL_PROVIDER][] = array('value' => $device_group->purl_modifier, 'id' => $device_group->dgid);
+  }
+
+  return $modifiers;
+}
+
+/**
+ * Implements hook_spaces_plugins().
+ */
+function mobile_tools_spaces_plugins() {
+  $plugins = array();
+
+  // Register the space plugin
+  $plugins['space_mobile_tools'] = array(
+    'handler' => array(
+      'path' => drupal_get_path('module', 'mobile_tools') . '/plugins',
+      'file' => 'mobile_tools_spaces.inc',
+      'class' => 'space_mobile_tools',
+      'parent' => 'space_type_purl',
+    ),
+  );
+
+  return $plugins;
+}
+
+/**
+ * Implements hook_spaces_registry().
+ */
+function mobile_tools_spaces_registry() {
+  $types = array();
+/*  $device_groups = mobile_tools_device_groups();
+
+  // Register a space for each device group
+  // @todo change to register only one device space type
+  // instead use implementations of each space for settings
+  foreach ($device_groups as $id => $name) {
+    $types['mobile_tools_' . $id] = array(
+      'title' => t('Device Group Space: @group', array('@group' => t($name))),
+      'plugin' => 'space_mobile_tools',
+      'path' => 'admin/config/system/mobile-tools/spaces/%mbspace',
+    );
+  }
+
+  return array('types' => $types);
+  */
+}
+
+// Public functions
+
+/**
+ * Helper function returning the configurable message for the notification
+ *
+ * @return string
+ *  Returns an item list of links or a notification message.
+ */
+function mobile_tools_block_message() {
+  // @todo decide if we still need this block
+
+/*
+  // If automatic redirection is enabled, disable the switch links
+  if (variable_get('mobile_tools_redirect', FALSE)) {
+    return t('Automatic redirection is active. Manual switching is disabled.');
+  }
+
+  // Get the active device group
+  $active_groups = mobile_tools_get_active_device_group(TRUE);
+
+  // Get the full list of device groups
+  $device_groups = mobile_tools_device_groups();
+
+  foreach ($active_groups as $key => $group) {
+    // Eliminate the active group from the list of links
+    unset($device_groups[$group['id']]);
+  }
+
+  // Prepare the formatted array for theme_item_list().
+  $items = array();
+
+  // Get the current path
+  $path = purl_get_normal_path(mobile_tools_get_q());
+
+  foreach ($device_groups as $id => $name) {
+    // Get the link text
+    $text = mobile_tools_switch_link_text($id);
+
+    // Load the options required for PURL to rewrite the generated link.
+    $options = mobile_tools_switch_options($id);
+
+    // Generate the link
+    $items[] = l(t($text, array('@device' => $name)), $path, $options);
+  }
+
+  return theme('item_list', array('items' => $items));*/
+
+  return '';
+}
+
+/**
+ * Disable the redirection for the given user
+ */
+function mobile_tools_skip_redirect($data) {
+  dpm($data);
+  dpm('skip');
+  mobile_tools_redirection_disabled(FALSE, TRUE);
+}
+
+/**
+ * Check if the redirection is disabled or not
+ *
+ * @return boolean
+ *  Return TRUE to disable the redirect, FALSE otherwise.
+ */
+function mobile_tools_redirection_disabled($clear = FALSE, $forced_state = NULL) {
+  // Check if the state has been predefined
+  if (!is_null($forced_state) and is_bool($forced_state)) {
+    $disable = $forced_state;
+  }
+  else {
+    $disable = &drupal_static(__FUNCTION__);
+  }
+  
+  // Check the active providers if the state hasn't been predefined
+  if (($disable or $clear) and is_null($forced_state)) {
+    $active = purl_active()->get();
+    $disable = _mobile_tools_get_active_purl_provider($active, MOBILE_TOOLS_PURL_PROVIDER_SKIP_REDIRECT);
+  }
+  
+  return $disable;
+}
+
+/**
+ * Get the text to display on the switch links
+ *
+ * Pass the device group you want to link to.
+ *
+ * @param string $device_group
+ *  Device group
+ * @return string
+ *  Returns the link text
+ */
+function mobile_tools_switch_link_text($device_group) {
+  return variable_get('mobile_tools_switch_link_text', MOBILE_TOOLS_SWITCH_LINK_TEXT);
+}
+
+/**
+ * Generate the options required for PURL to rewrite the URL
+ *
+ * @param string $device_group
+ *  The device group you want to switch to.
+ * @return string
+ *  Returns options array to pass into l() or url().
+ */
+function mobile_tools_switch_options($device_group, $options = array()) {
+  // Set the options required for each device group
+  $device_groups = mobile_tools_device_group_load_all();
+
+  // @todo redo this function
+
+  if (isset($device_groups[$device_group])) {
+    // Set the options required to get the link for the mobile site
+    $options['purl']['provider'] = MOBILE_TOOLS_PURL_PROVIDER;
+    $options['purl']['id'] = $device_group;
+    return $options;
+  }
+  // Disable purl if unknown group
+  $options['purl']['disabled'] = TRUE;
+  return $options;
+}
+
+/**
+ * Redirect the user based on the device/site type combination
+ *
+ * @param object $device_group
+ *  Device group to send the user to
+ */
+function mobile_tools_device_redirect($device_group) {
+  // @todo add redirect session detection (i.e. see if the user has already been redirected)
+  // @todo add detection to get the current device
+
+  // Get the current 'q' path parameter
+  // @todo replace with purl normal path function call
+  $q = purl_get_normal_path(mobile_tools_get_q());
+
+  // This should be happening in purl_get normal_path(), but it's not.
+  $q = drupal_is_front_page() ? '' : $q;
+
+  // Check list of exception pages
+  // @todo
+  
+  // Define the url option
+  $options = array('purl' => array('provider' => MOBILE_TOOLS_PURL_PROVIDER, 'id' => $device_group->dgid));
+
+  // Check the type of redirection
+  if (variable_get('mobile_tools_redirection_type', MOBILE_TOOLS_REDIRECT_SERVER_SIDE) == MOBILE_TOOLS_REDIRECT_CLIENT_SIDE) {
+    $url = _mobile_tools_extract_url($q, $options);
+    drupal_add_js(array('mobile_tools' => array('redirect' => TRUE, 'path' => $url, 'auto' => variable_get('mobile_tools_redirection_auto', FALSE))) ,'setting');
+    drupal_add_js(drupal_get_path('module', 'mobile_tools') . '/mobile_tools.js');
+    // If the redirection isn't automatic, load the dialog library to show the modal dialog
+    if (variable_get('mobile_tools_redirection_auto', FALSE) == FALSE) {
+      drupal_add_library('system', 'ui.dialog');
+    }
+  }
+  else {
+    // Send the user to that new URL.
+    purl_goto($q, $options);
+  }
+
+}
+
+/**
+ * Initialize the device group
+ */
+function mobile_tools_activate_device_group($modifier) {
+  // @todo add spaces init
+  mobile_tools_get_active_device_group($modifier);
+}
+
+/**
+ * Get the active device group.
+ *
+ * @param object $modifier [optional]
+ *  PURL modifier
+ * @param boolean $clear [optional]
+ *  Flush cache
+ *
+ * @return object
+ *  Returns the active device group object, FALSE otherwise.
+ */
+function mobile_tools_get_active_device_group($modifier = NULL, $clear = FALSE) {
+  // @todo add logic to use the given modifier instead of scanning all of 
+  // them
+  $device_group = &drupal_static(__FUNCTION__);
+
+  if (!isset($device_group) or $clear) {
+
+    $device_group = FALSE;
+
+    // Check the active modifiers
+    $active = purl_active();
+    $active = _mobile_tools_get_active_purl_modifiers($active->get());
+
+    if (!empty($active)) {
+      foreach ($active as $key => $object) {
+        $device_group = mobile_tools_device_group_load($object->id);
+        if (is_object($device_group)) {
+          // @todo add extra check to see if it's the right provider
+          // Only one device group can be active at a time.
+          // So if we get a loaded device group, just return it.
+          return $device_group;
+        }
+      }
+    }    
+  }
+
+  return $device_group;
+}
+
+/**
+ * Returns the content of $_GET['q'] as expected.
+ * Therefore, $_GET['q'] gets transformed if necessary.
+ * E.g., Ajax Views rewrites the q parameter.
+ *
+ * Original code taken from themekey module
+ * @see http://drupal.org/project/themekey
+ *
+ * @return string
+ */
+function mobile_tools_get_q() {
+  static $get_q = '';
+
+  if (empty($get_q)) {
+    if ('views/ajax' == $_GET['q'] && !empty($_GET['view_path'])) {
+      // required for Ajax Views. see http://drupal.org/node/567222
+      $get_q = $_GET['view_path'];
+    }
+    else {
+      $get_q = $_GET['q'];
+    }
+  }
+
+  return $get_q;
+}
+
+// Private functions
+
+/**
+ * Builds an empty device group object
+ *
+ * @return object
+ *  Reeturns an empty device group object.
+ */
+function _mobile_tools_empty_device_group() {
+  // Use the CTools export API to create an empty object
+  ctools_include('export');
+  $device_group = ctools_export_crud_new('mobile_tools_device_group');
+
+  return $device_group;
+}
+
+/**
+ * Get the list of active providers.
+ *
+ * Optionally, check for a specific provider
+ * @param array $modifiers
+ *  List of modifiers
+ * @param string $provider [optional]
+ *  Provider name to match against
+ * @return array|boolean
+ *  Returns a list of providers or TRUE if the given provider is active, FALSE otherwise.
+ */
+function _mobile_tools_get_active_purl_provider($modifiers, $provider = NULL) {
+  $providers = array();
+  
+  foreach ($modifiers as $type => $set) {
+    foreach ($set as $modifier) {
+      if (!is_null($provider) and $modifier->provider == $provider) {
+        return TRUE;
+      }
+      $providers[$modifier->$provider] = $modifier->$provider;
+    }
+  }
+  if (!is_null($provider)) {
+    return FALSE;
+  }
+  else {
+    return $providers;
+  }
+}
+
+/**
+ * Scan the active modifiers for any active mobile tools ones.
+ *
+ * @param array $modifiers
+ *  List of active PURL modifiers
+ * @return array
+ *  Returns an array of active mobile tools modifiers, FALSE otherwise.
+ */
+function _mobile_tools_get_active_purl_modifiers($modifiers, $provider = MOBILE_TOOLS_PURL_PROVIDER) {
+  // Store only active modifiers
+  $active_modifiers = FALSE;
+
+  // Mark each active modifier
+  foreach ($modifiers as $modifier_type) {
+    foreach ($modifier_type as $modifier) {
+      if (isset($modifier->provider) && $modifier->provider == $provider) {
+        $active_modifiers[] = $modifier;
+      }
+    }
+  }
+
+  // Return the list of active modifiers
+  return $active_modifiers;
+}
+
+/**
+ * Helper function to build the themekey rule chain
+ *
+ * @param object $device_group [reference]
+ *  Device group
+ * @return array
+ *  Returns an array describing the themekey rule.
+ */
+function _mobile_tools_prepare_themekey_rule(&$device_group) {
+  // Build the themekey rule
+  // @todo add second rule for enabled purl provider
+  $themekey = array(
+    'property' => 'purl:active_modifier',
+    'operator' => '=',
+    'value' => $device_group->dgid,
+    'theme' => $device_group->theme,
+    'enabled' => TRUE,
+    'wildcards' => array(),
+    'parent' => '',
+  );
+
+  return $themekey;
+}
+
+/**
+ * List of device detection modules
+ *
+ * @param boolean $clear [optional]
+ *  Force the cache to be cleared
+ *
+ * @return array
+ *  Returns the list of modules which implement hook_mobile_tools_device_detector_info().
+ */
+function _mobile_tools_get_device_detectors($clear = FALSE) {
+  $detectors = &drupal_static(__FUNCTION__);
+  
+  if (!isset($detectors) or $clear) {
+    // Check if device detection is available.
+    foreach(module_implements('mobile_tools_device_detector_info') as $module) {
+      $detectors[$module] = call_user_func($module . '_mobile_tools_device_detector_info');
+    }    
+  }
+
+  return $detectors;
+}
+
+/**
+ * URL extraction tool
+ *
+ * This is a copy of the logic in purl_goto which generates the URL during
+ * redirection. We use this to generate the appropriate link to pass
+ * to the client-side redirection mechanism.
+ *
+ * @param string $path [optional]
+ *  Path
+ * @param array $options [optional]
+ *  Options to pass to url()
+ * @param integer $http_response_code [optional]
+ *  Response code
+ * @return string
+ *  Returns the url for the redirection.
+ */
+function _mobile_tools_extract_url($path = '', $options = array(), $http_response_code = 302) {
+  $options = !is_array($options) ? array() : $options;
+
+  $options['absolute'] = TRUE;
+
+  if (isset($_GET['destination'])) {
+    extract(parse_url(urldecode($_GET['destination'])));
+  }
+  else if (isset($_REQUEST['edit']['destination'])) {
+    extract(parse_url(urldecode($_REQUEST['edit']['destination'])));
+  }
+
+  $url = url($path, $options);
+
+  // purl_goto() EJECTOR:
+  //
+  // Under certain circumstances, (e.g. a modifier being stale or deleted from
+  // the DB), purl_goto() can be left hanging in an infinite redirect loop. We
+  // can detect this by comparing the current URL with a rewritten URL. If they
+  // are identical, we are entering a loop.
+  if (isset($options['purl'])) {
+    $current_url = url($_GET['q'], array('absolute' => TRUE, 'query' => drupal_get_query_parameters()));
+    if ($url == $current_url) {
+      watchdog('purl', 'Infinite redirect prevented.', array(), WATCHDOG_INFO);
+      return;
+    }
+  }
+
+  // Remove newlines from the URL to avoid header injection attacks.
+  $url = str_replace(array("\n", "\r"), '', $url);
+  
+  return $url;
+}

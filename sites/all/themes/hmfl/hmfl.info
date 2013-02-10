@@ -7,10 +7,13 @@ core = 7.x
 
 
 
-;scripts[] = js/jquery-1.6.js
+scripts[] = js/hmfl.js
+scripts[] = js/jquery.jeditable.mini.js
 
 
 regions[header] = Header
+regions[quick_search] = Quick search
+regions[content_top] = Content top
 regions[content] = Content
 regions[footer] = Footer
 

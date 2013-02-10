@@ -1,0 +1,103 @@
+<?php
+
+/**
+ * @file
+ * Adds support for manipulating HTTP headers for each device group using
+ * Context HTTP Headers
+ */
+
+// @todo
+
+// Array key for global header flag form element
+define('MOBILE_TOOLS_HTTP_HEADERS', 'mobile_tools_headers');
+
+// Array key for device group flag form element
+define('MOBILE_TOOLS_DEVICE_GROUP_HTTP_HEADERS', 'mobile_tools_device_group_headers');
+
+
+/**
+ * Implements hook_context_http_header_def().
+ *
+ * Add option to include device group headers
+ */
+function mobile_tools_httpheaders_context_http_header_def() {
+
+  // Include global headers
+  $form[MOBILE_TOOLS_HTTP_HEADERS] = array(
+    '#type' => 'checkbox',
+    '#title' => t("Include 'Mobile Tools' global headers"),
+    '#description' => t('Include global headers as defined by Mobile Tools (i.e. location headers for redirection)'),
+    '#default_value' => -1,
+  );
+
+  // Include device group specific headers
+  $form[MOBILE_TOOLS_DEVICE_GROUP_HTTP_HEADERS] = array(
+    '#type' => 'checkbox',
+    '#title' => t("Include active 'Device Group' headers"),
+    '#description' => t('Include header information as defined by the active device group.'),
+    '#default_value' => -1,
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_context_http_header_build().
+ *
+ * Check for an active device group and add headers
+ */
+function mobile_tools_httpheaders_context_http_header_build($http_header_items) {
+  $keyed_headers = array();
+
+  // Prepare global header data
+  $global_headers = array();
+  if (isset($http_header_items[MOBILE_TOOLS_HTTP_HEADERS]) &&
+      TRUE == $http_header_items[MOBILE_TOOLS_HTTP_HEADERS]
+  ) {
+    // Load the header data
+    $header_data = variable_get('mobile_tools_global_httpheaders', FALSE);
+
+    // Build the header array
+    foreach (explode("\r\n", $header_data) as $header) {
+      if (!empty($header)) { // Don't store empty lines
+        // Split the line only by non-escaped colon
+        $split_header = preg_split('/(?<!\\\):/', $header);
+        $global_headers[$split_header[0]] = $split_header[1];
+      }
+    }
+  }
+
+  // Prepare device group header data
+  $active_device_group = mobile_tools_get_active_device_group();
+
+  // Check if there is an active group
+  if (FALSE !== $active_device_group) {
+    $device_group_headers = array();
+
+    // Check if the reaction is enabled
+    if (isset($http_header_items[MOBILE_TOOLS_DEVICE_GROUP_HTTP_HEADERS]) && TRUE == $http_header_items[MOBILE_TOOLS_DEVICE_GROUP_HTTP_HEADERS]) {
+
+      // Load the header data for active device group
+      $active_device_group_headers = $active_device_group->httpheaders;
+      if (!empty($active_device_group_headers) && is_array($active_device_group_headers)) {
+        $device_group_headers = $active_device_group_headers;
+      }
+    }
+    $keyed_headers = array_merge($global_headers, $device_group_headers);
+  }
+  return $keyed_headers;
+}
+
+/**
+ * Implements hook_ctools_plugin_api().
+ */
+function mobile_tools_httpheaders_ctools_plugin_api($module, $api) {
+  if ($module == 'context' && $api == 'context') {
+    return array('version' => 3);
+  }
+}
+
+// @todo add default sitewide context which adds the header data.
+
+// @todo add warning when default contexts are disabled and/or overridden
+// @todo add toggle to disable warnings in config

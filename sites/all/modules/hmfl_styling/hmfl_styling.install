@@ -1,0 +1,27 @@
+<?php
+
+function hmfl_styling_schema() {
+$schema = array();
+  $schema = array(
+      'hmfl_styling'=> array(
+	 'fields' => array(
+        'developer_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+        'top_strip' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+		'development_logo' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+		'top_banner' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+		'developer_logo' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+		'header_text' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+		'body_text' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+		'link_text' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+                'des_text' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+                'down_links' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+                'menu_text' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+                'bottom_strip' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => ''),
+                'pdf_icon' => array('type' => 'bigint', 'unsigned' => TRUE, 'not null' => TRUE),
+      ),
+	   'indexes' => array('developer_id' => array('developer_id')),
+	 ),
+);
+ return $schema;
+
+}

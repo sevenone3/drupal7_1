@@ -1,0 +1,26 @@
+<?php
+
+/**
+ * Implements hook_enable().
+ */
+function mobile_tools_cache_enable() {
+  // Save the original cache value
+  variable_set('mobile_tools_cache_original', variable_get('cache_default_class'));
+  
+  // Set the default cache location to the Mobile Tools Cache
+  variable_set('cache_default_class', 'MobileToolsDatabaseCache');
+}
+
+/**
+ * Implements hook_disable().
+ */
+function mobile_tools_cache_disable() {
+  // Restore the original value
+  variable_set('cache_default_class', variable_get('mobile_tools_cache_original'));
+  
+  // Cleanup variables
+  variable_del('mobile_tools_cache_original');
+}
+
+
+

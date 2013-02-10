@@ -1,0 +1,151 @@
+/* LAYOUT */
+
+html {
+  height: 100%;
+  }
+
+#wrapper {
+  width: 96%;
+  margin: 2em auto;
+  padding: 1em;
+}
+#content-wrapper {
+  position: relative;
+}
+#content {
+  clear: left;
+  float: left;
+  width: 70%;
+  margin-top: 5em;
+}
+
+#supplementary {
+  width: 27%;
+  float: right;
+  clear: right;
+  margin-top: 5em;
+}
+
+#navigation {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+  #navigation li {
+    padding: 1px;
+    display: inline-block;
+  }
+#footer {
+  clear: both;
+}
+
+ul.navigation-menu {
+  width: 100%;
+  margin: 0;
+  padding: 3px 0 0;
+  display: block;
+  text-align: center;
+}
+
+
+.breadcrumb {
+  padding: 0 0 10px 0;
+}
+div.tabs {
+  margin: 0 0 10px 0;
+}
+ul.tabs {
+}
+  ul.tabs li a {
+  padding: 1px 4px;   
+  margin: 0;
+  }
+  
+#comments {
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+#supplementary, #supplementary .block {
+  margin-bottom: 1em;
+}
+ th{
+    background: #50748a;
+    padding: 5px 3px;
+    color:#fff;
+    margin-top: 23px;
+}
+
+ tr{
+
+    border-bottom: 1px solid #828282;
+    
+}
+tr td
+{
+  background-color:white;
+  color:#000;
+  padding: 7px 0;
+
+}
+ tr td:first-child{
+  background: url("../images/pl-list-icon.png") no-repeat center left;
+  padding-left:20px;
+/*   margin-left:50px; */
+  background-color:white;
+}
+tr td a
+{
+  color: black;
+  text-decoration:none;
+  
+}
+ tr div.plc{
+
+}
+
+.plc .pl-icon{
+    display: block;
+    background: url("../images/pl-list-icon.png") no-repeat scroll center;
+    width:10px;
+    height: 14px;
+    margin-right: 3px;
+    margin-top: 2px;
+}
+.plc .pl-text{
+    margin-left: 10px;
+}
+.plc .plhtext{
+    color:#000; 
+}
+.plc .plotext{
+    color: #b9b9b9;
+}
+.plc .pl-icons{
+    width: 90px;
+}
+.plc .pl-icons a{
+    display: block;
+    margin: 0 5px;
+    width: 20px;
+    height:20px;
+    text-decoration: none;
+}
+.pl-icons .pl-delete{
+    background: url("../images/pl-list-del-icon.png") no-repeat scroll center;
+}
+.pl-icons .pl-edit{
+    background: url("../images/pl-list-edit-icon.png") no-repeat scroll center;
+}
+.pl-icons .pl-pdf{
+    background: url("../images/pl-list-pdf-icon.png") no-repeat scroll center;
+}
+#lgform .description {
+  display: none;
+}
+.page-find-nearby-places .box3 {
+  height: auto !important;
+}
+table a {
+  font-size: 12px;
+}

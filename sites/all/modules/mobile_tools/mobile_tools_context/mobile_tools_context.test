@@ -1,0 +1,83 @@
+<?php
+
+/**
+ * @file
+ * Tests for mobile_tools_context
+ *
+ * @author Mathew Winstone <mwinstone@coldfrontlabs.ca>
+ */
+
+class MobileToolsContextConditionMobileTest extends DrupalWebTestCase {
+  protected $profile = 'testing';
+
+  public static function getInfo() {
+    return array(
+      'name' => 'Condition: Mobile',
+      'description' => 'Test mobile condition.',
+      'group' => 'Mobile Tools',
+    );
+  }
+
+  function setUp() {
+    parent::setUp('ctools', 'purl', 'context', 'mobile_tools', 'mobile_tools_context');
+    $admin_user = $this->drupalCreateUser(array('administer site configuration', 'administer mobile tools'));
+    $this->drupalLogin($admin_user);
+
+    // Enable clean URLs, required to test the device group context path
+    variable_set('clean_url', 1);
+
+    variable_set('purl_types', array(
+      'path' => 'path',
+      'pair' => 'pair',
+      'extension' => 'extension',
+      'querystring' => 'querystring'
+    ));
+  }
+
+  /**
+   * Creates a Context using the default device group and tests whether that
+   * context is active when viewing the URL for that device group.
+   */
+  function testContext() {
+    ctools_include('export');
+
+    // Create a context for this device group
+    $context = ctools_export_new_object('context');
+    $context->name = 'mt7_test';
+    $context->tag = 'development';
+    $context->conditions = array(
+      'device_group' => array(
+        'values' => array(
+          'mobile' => 'mobile',
+        ),
+      ),
+    );
+    $context->reactions = array('debug' => array('debug' => TRUE));
+    $context->disabled = FALSE;
+    $context->api_version = 3;
+    $context->description = '';
+    $context->reactions = array(
+      'debug' => array(
+        'debug' => 1,
+      ),
+    );
+    $context->condition_mode = 0;
+    $saved = context_save($context);
+    $this->assertTrue($saved, "Context 'mt7_test' saved.");
+
+    // With the debug mode on, Context will print to screen when the context is
+    // active
+    $this->drupalGet('mobile');
+    $this->assertText('Active context: mt7_test');
+
+    // Configure the mobile tools settings to not trigger the mobile context
+    // @todo
+
+    // @todo repeat tests from above
+
+    // Cleanup
+    context_delete($context);
+
+    // @todo: Test with language suffixes
+  }
+}

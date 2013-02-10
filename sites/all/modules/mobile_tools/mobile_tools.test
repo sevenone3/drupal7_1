@@ -1,0 +1,229 @@
+<?php
+
+/**
+ * @file
+ * Tests for mobile tools
+ */
+
+abstract class MobileToolsTestCase extends DrupalWebTestCase {
+
+  protected $admin_user;
+  protected $nonadmin_user;
+  protected $device_group;
+  protected $renamed_device_group;
+  protected $mainUrl;
+  protected $settingsUrl;
+  protected $addUrl;
+  protected $editUrl;
+  protected $deleteUrl;
+
+  public function setUp() {
+    parent::setUp('themekey', 'mobile_tools');
+    $this->admin_user = $this->drupalCreateUser(array('administer mobile tools'));
+    $this->nonadmin_user = $this->drupalCreateUser(array());
+    $this->device_group = array(
+      'title' => 'Test Group',
+      'dgid'  => 'test_group',
+      'purl_modifier' => 'test_modifier',
+      'theme' => 'bartik',
+      'description' => 'Test device group.',
+    );
+    $this->renamed_device_group = array(
+      'title' => 'Renamed Test Group',
+      'purl_modifier' => 'renamed_test_modifier',
+      'theme' => 'seven',
+      'description' => 'Renamed test device group.',
+    );
+    $this->mainUrl = 'admin/config/system/mobile-tools';
+    $this->settingsUrl = 'admin/config/system/mobile-tools/settings';
+    $this->addUrl = 'admin/config/system/mobile-tools/add';
+    $this->editUrl = 'admin/config/system/mobile-tools/edit';
+    $this->deleteUrl = 'admin/config/system/mobile-tools/delete';
+  }
+}
+
+class MobileToolsUserRolesTestCase extends MobileToolsTestCase {
+  public static function getInfo() {
+    return array(
+      'name' => t('User Access'),
+      'description' => t('Tests Mobile Tools user roles, and creating/editing/deleting device groups.'),
+      'group' => t('Mobile Tools'),
+    );
+  }
+
+  /**
+   * Tests that the admin user can access the Mobile Tools pages.
+   */
+  public function testAdminUserAccess() {
+    // Test admin user access to config
+    $this->drupalLogin($this->admin_user);
+    $this->assertTrue(user_access('administer mobile tools', $this->admin_user),
+                      t('User has "administer mobile tools" permission.'));
+
+    // Test access to global settings
+    $this->drupalGet($this->settingsUrl);
+    $this->assertText('Settings', t('Admin user has access to Mobile Tools global settings'));
+
+    // Test access to device group list
+    $this->drupalGet($this->mainUrl);
+    $this->assertText('Add Device Group', t('Found Add Device Group link.'));
+    $this->assertText('Sample device group', t('Default device group present.'));
+
+    // Test access to add device group form
+    $this->drupalGet($this->addUrl);
+    $this->assertField('edit-title', '', t('Device Group form found'));
+    $this->assertFieldByName('form_id', 'mobile_tools_device_group_form', t('Edit device Group form found'));
+
+    // Test access to edit device group form
+    $this->drupalGet($this->editUrl . '/mobile');
+    $this->assertField('edit-title', 'Mobile', t('Device Group form found'));
+    $this->assertFieldByName('form_id', 'mobile_tools_device_group_form', t('Device Group form found'));
+
+    // Test access to delete device group form
+    $this->drupalGet($this->deleteUrl . '/mobile');
+    $this->assertFieldByName('form_id', 'mobile_tools_device_group_delete_confirm', t('Device Group form found'));
+    // */
+  }
+
+  /**
+   * Tests that a user without the proper role cannot access the Mobile Tools
+   * pages.
+   */
+  public function testNonAdminUserAccess() {
+    // Test non-admin user access denied
+    $this->drupalLogin($this->nonadmin_user);
+    $this->assertFalse(user_access('administer mobile tools', $this->nonadmin_user),
+      t('User doesn\'t have "administer mobile tools" permission.'));
+
+    // Test access denied to device group list
+    $this->drupalGet($this->mainUrl);
+    $this->assertText('Access denied',
+      t('Non-admin user denied access to mobile tools page.'));
+
+    // Test access denied to device group list
+    $this->drupalGet($this->settingsUrl);
+    $this->assertText('Access denied',
+      t('Non-admin user denied access to mobile tools settings page.'));
+
+    // Test access denied to add device group form
+    $this->drupalGet($this->addUrl);
+    $this->assertText('Access denied',
+      t('Non-admin user denied access to add device group page.'));
+
+    // Test access denied to edit device group form
+    $this->drupalGet($this->editUrl . '/mobile');
+    $this->assertText('Access denied',
+      t('Non-admin user denied access to edit device group.'));
+
+    // Test access denied to delete device group form
+    $this->drupalGet($this->deleteUrl . '/mobile');
+    $this->assertText('Access denied',
+      t('Non-admin user denied access to delete device group.'));
+  }
+}
+
+class MobileToolsDeviceGroupTestCase extends MobileToolsTestCase {
+  public static function getInfo() {
+    return array(
+      'name' => t('Device Groups'),
+      'description' => t('Tests Mobile Tools user roles, and creating/editing/deleting device groups.'),
+      'group' => t('Mobile Tools'),
+    );
+  }
+
+  /**
+   * Tests the ability to create, edit, and then delete a device group. Further
+   * tests that the default device group can be edited and reverted.
+   */
+  public function testNewDeviceGroupCrud() {
+
+    $this->drupalLogin($this->admin_user);
+
+    // Test adding new device group
+    // Get add device group form
+    $this->drupalGet($this->addUrl);
+    $this->assertText('Device Group Name', t('Found device group form.'));
+    $form = $this->device_group;
+
+    // Submit new device group
+    $this->drupalPost($this->addUrl, $form, t('Save device group'));
+    $this->assertText($this->device_group['title']);
+    $this->assertText($this->device_group['dgid']);
+    $this->assertText($this->device_group['purl_modifier']);
+    $this->assertText($this->device_group['theme']);
+    $this->assertText($this->device_group['description']);
+    $this->assertLinkByHref($this->editUrl . '/test_group', 0, t('Edit link found.'));
+    $this->assertLinkByHref($this->deleteUrl . '/test_group', 0, t('Delete link found.'));
+
+    // Test editing device group
+    // Get edit device group form
+    $this->drupalGet($this->editUrl . '/test_group');
+    $this->assertFieldByName('title', 'Test Group', t('Found title field.'));
+    $this->assertFieldByName('dgid', 'test_group', t('Found machine-name field.'));
+    $this->assertFieldByName('purl_modifier', 'test_modifier', t('Found PURL modifier field.'));
+    $this->assertOptionSelected('edit-theme', 'bartik', t('Found theme option.'));
+    $this->assertFieldByName('description', 'Test device group.', t('Found description field.'));
+    $form = $this->renamed_device_group;
+
+    // Submit edited device group
+    $this->drupalPost($this->editUrl . '/test_group',
+                      $form,
+                      t('Save device group'));
+    $this->assertText($this->renamed_device_group['title']);
+    $this->assertText($this->device_group['dgid']);
+    $this->assertText($this->renamed_device_group['purl_modifier']);
+    $this->assertText($this->renamed_device_group['theme']);
+    $this->assertText($this->renamed_device_group['description']);
+    $this->assertLinkByHref($this->editUrl . '/test_group', 0, t('Edit link found.'));
+    $this->assertLinkByHref($this->deleteUrl . '/test_group', 0, t('Delete link found.'));
+
+    // Test deleting device group
+    // Get delete device group form
+    $this->drupalGet($this->deleteUrl . '/test_group');
+    $this->assertText('Are you sure you want to delete the device group ' . $form['title']);
+    $form = array('confirm' => 1);
+
+    // Confirm deletion of device group
+    $this->drupalPost($this->deleteUrl . '/test_group', $form, t('Delete'));
+    $this->assertText('Device group test_group has been deleted.');
+    $this->assertNoText($this->renamed_device_group['title']);
+    // */
+  }
+
+  /**
+   * Tests that the default device group can be modified and then reverted.
+   */
+  public function testDefaultDeviceGroupRevert() {
+    $this->drupalLogin($this->admin_user);
+
+    // Test editing default device group
+    // Get edit device group form
+    $this->drupalGet($this->editUrl . '/mobile');
+    $this->assertFieldByName('title', 'Mobile', t('Found title field.'));
+    $this->assertFieldByName('dgid', 'mobile', t('Found machine-name field.'));
+    $this->assertFieldByName('purl_modifier', 'mobile', t('Found PURL modifier field.'));
+    $this->assertOptionSelected('edit-theme', '0', t('Found theme option.'));
+    $this->assertFieldByName('description', 'Sample device group.', t('Found description field.'));
+    $form = $this->device_group;
+    $form['title'] = 'Mobile Overridden';
+    unset($form['dgid']);
+
+    // Submit modified default device group
+    $this->drupalPost($this->editUrl . '/mobile', $form, t('Save device group'));
+    $this->assertText('Mobile Overridden');
+    $this->assertLinkByHref($this->editUrl . '/mobile', 0, t('Edit link found.'));
+    $this->assertLinkByHref($this->deleteUrl . '/mobile', 0, t('Revert link found.'));
+
+    // Test reverting device group
+    // Get revert device group form
+    $this->drupalGet($this->deleteUrl . '/mobile');
+    $this->assertText('Are you sure you want to revert the device group ' . $form['title']);
+    $form = array('confirm' => 1);
+
+    // Confirm reverting default device group
+    $this->drupalPost($this->deleteUrl . '/mobile', $form, t('Revert'));
+    $this->assertText('Device group mobile has been reverted.');
+    $this->assertText('Mobile');
+    $this->assertNoText('Mobile Overridden');
+  }
+}

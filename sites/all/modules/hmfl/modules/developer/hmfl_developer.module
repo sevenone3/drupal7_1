@@ -14,6 +14,34 @@ function hmfl_developer_menu()
       'weight' => -4,
       'type' => MENU_LOCAL_TASK,
     ),
+	'developer/ajax-update' => array(
+      'page callback' => 'hmfl_developer_ajax_update',
+      'type' => MENU_LOCAL_TASK,
+	  'access callback' => TRUE,
+    ),
+	'dev/admin/ajax-update' => array(
+      'page callback' => 'hmfl_developer_ajax_admin_update',
+      'type' => MENU_LOCAL_TASK,
+	  'access callback' => TRUE,
+    ),
+	'dev/admin/full/name/ajax-update' => array(
+      'page callback' => 'hmfl_developer_ajax_admin_full_name',
+      'type' => MENU_LOCAL_TASK,
+	  'access callback' => TRUE,
+    ),
+	'dev/admin/email/ajax-update' => array(
+      'page callback' => 'hmfl_developer_ajax_admin_email',
+      'type' => MENU_LOCAL_TASK,
+	  'access callback' => TRUE,
+    ),
+	
+	'password-reset/%' => array(
+      'page callback' => 'drupal_get_form',
+	  'page arguments'=> array('hmfl_password_reset',1),
+      'type' => MENU_LOCAL_TASK,
+	  'access callback' => 'hmfl_pass_perm',
+    ),
+	
     'admin/hmfl/companies/new' => array(
       'title' => 'new',
       'page callback' => 'drupal_get_form',
@@ -46,19 +74,19 @@ function hmfl_developer_menu()
 //     ),
     'developer/%' => array(
       'title' => 'edit',
-        'page callback' => 'drupal_get_form',
-        'page arguments' => array('hmfl_developer_edit', 1),
+        'page callback' => 'hmfl_developer_main_page',
+        'page arguments' => array(1),
         'access callback' => 'hmfl_developer_admin_check',
         'access arguments' => array(1),
     ),
     'developer/%/delete' => array(
       'title' => 'delete',
-        'page callback' => 'drupal_get_form',
-        'page arguments' => array('hmfl_developer_confirm_delete', 1),
+        'page callback' => 'hmfl_developer_confirm_delete',
+        'page arguments' => array(1),
         'access arguments' => array(
           'access administration pages'
         ),
-        'type' => MENU_LOCAL_TASK,
+        'type' => MENU_CALLBACK,
     ),
     'developer/%/edit' => array(
       'title' => 'edit',
@@ -88,6 +116,14 @@ function hmfl_developer_menu()
         'access callback' => 'hmfl_developer_admin_check',
         'access arguments' => array(1),
         'type' => MENU_NORMAL_ITEM,
+    ),
+   'developer/%/assign-pdfs' => array(
+      'title' => 'Assign PDFs',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('hmfl_developer_assign_pdf', 1),
+        'access callback' => 'hmfl_developer_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_LOCAL_TASK,
     ),
 
   );
@@ -182,19 +218,25 @@ function hmfl_developer_theme()
 
 function hmfl_developer_list()
 {
-
+  global $base_url;
   $developments_enabled = module_exists('hmfl_development');
 
   $header = array(
     array('data' => t('id'),'width' => 100),
     array('data' => t('Developer'),'width'=>300),
-    array("data"=>"",'width'=>50),
-    array("data"=>"",'width'=>50),
+    array('data' => t('Total developments'),'width'=>200),
+    array('data' => t('Total plots'),'width'=>200),
+	array('data' => t('Date added'),'width'=>200),
+    array("data"=>"",'width'=>100),
+    array("data"=>"",'width'=>100),
     array("data"=>"",'width'=>50)
   );
 
   $query = db_select('hmfl_developer', 'h')->extend('PagerDefault');
-  $query->fields('h', array('id', 'title'));
+  $query->fields('h', array('id', 'title','time'));
+  
+  
+  
   if(!user_access('access administration pages'))
   {
     global $user;
@@ -215,9 +257,14 @@ function hmfl_developer_list()
   }
   else
   {
-    $build['add_developer'] = array(
+      $build['admin_details'] = array(
       "#type"=>"markup",
-      "#markup"=>l("add developer","admin/hmfl/companies/new")
+      "#markup"=> get_admin_details(),
+    );
+	
+     $build['add_developer'] = array(
+      "#type"=>"markup",
+      "#markup"=> '<div class="hide-fields">'.render(drupal_get_form('hmfl_developer_new')).'</div>',
     );
   }
   $result = $query
@@ -227,12 +274,25 @@ function hmfl_developer_list()
   $rows = array();
   foreach ($result as $row)
   {
+    $query2 = db_query("SELECT COUNT(id) as total,id FROM hmfl_development WHERE developer_id = '$row->id'");
+      foreach ($query2 as $res2) {
+        $dev_total = $res2->total;
+        $query3 = db_query("SELECT COUNT(id) as total FROM hmfl_plot WHERE development_id = '$res2->id'");
+        foreach ($query3 as $res3) {
+           $plot_total = $res3->total;
+        }  
+    }  
+    
     $rows[] = array('data' => array(
       $row->id,
-      l($row->title,"developer/{$row->id}"),
+      '<div class="developer-ajax-edit" id="'.$row->id.'">'.$row->title.'</div>',
+	  //l($row->title,"developer/{$row->id}"),
+      $dev_total,
+      $plot_total,
+	  $row->time,
       l("admins","developer/{$row->id}/admins"),
       $developments_enabled?l("developments","developer/{$row->id}/developments"):"",
-      l("delete","developer/{$row->id}/delete"),
+      '<a class="delete" href="developer/'.$row->id.'/delete"><img src="'.$base_url.'/sites/all/themes/hmfl/images/delete.png"/>',
     ));
   }
 
@@ -263,6 +323,10 @@ function hmfl_developer_form($form, &$form_state, $developer)
     '#required' => TRUE,
     "#title"=>'Title',
     "#default_value"=>$developer->title
+  );
+  $form['time'] = array(
+    '#type' => 'hidden',
+    "#value"=> date('m/d/Y',time()),
   );
 
   field_attach_form('hmfl_developer', $developer, $form, $form_state);
@@ -307,14 +371,14 @@ function hmfl_developer_submit($form, &$form_state)
   catch(Exception $e)
   {
   }
-  if($developer->id)
-  {
-    $form_state['redirect'] = hmfl_developer_uri($developer);
-  }
-  else
-  {
-    $form_state['redirect'] = "admin/hmfl/companies";
-  }
+ // if($developer->id)
+  //{
+   // $form_state['redirect'] = hmfl_developer_uri($developer);
+  //}
+  //else
+  //{
+   // $form_state['redirect'] = "admin/hmfl/companies";
+  //}
   drupal_set_message(t('Developer %title saved.', array('%title' => entity_label('hmfl_developer', $developer))));
 }
 
@@ -352,31 +416,15 @@ function hmfl_developer_edit($form, &$form_state, $id)
   return hmfl_developer_form($form,$form_state,$developer);
 }
 
-function hmfl_developer_confirm_delete($form, &$form_state, $cid)
+function hmfl_developer_confirm_delete($cid)
 {
-
-  $developer = entity_load('hmfl_developer', array(intval($cid)), array(), false);
-  if(!isset($developer[$cid]))
-  {
-    drupal_set_message("Invalid request","error");
-  }
-  else
-  {
-    $developer = $developer[$cid];
-    $form_state['developer'] = $developer;
-    return confirm_form($form,t('Are you sure you want to delete the %title developer?',array('%title' => $developer->title)),'admin/hmfl/companies',t('This action is not reversible'),t('Delete'),t('Cancel'));
-  }
-
-}
-
-function hmfl_developer_confirm_delete_submit($form, &$form_state)
-{
-  $developer = $form_state['developer'];
+  db_query("DELETE FROM hmfl_developer WHERE id = '$cid'");
   entity_delete("hmfl_developer",$developer->id);
   entity_delete("hmfl_developer_admin",$developer->id);
   drupal_set_message("developer deleted");
-  $form_state['redirect'] = 'admin/hmfl/companies';
+  drupal_goto('dashboard');
 }
+
 
 function hmfl_developer_view($id)
 {
@@ -418,9 +466,10 @@ function hmfl_developer_admins($cid)
 {
 
   $header = array(
-    array('data' => t('id'),'width' => 100),
-    array('data' => t('Name'),'width'=>300),
+    array('data' => t('User name'),'width'=>300),
+	array('data' => t('Password'),'width' =>200),
     array("data"=> t("Email"),'width'=>200),
+	array("data"=> t("Full name"),'width'=>200),
     array("data"=>"",'width'=>50),
   );
 
@@ -430,15 +479,26 @@ function hmfl_developer_admins($cid)
   $query->condition("h.developer_id",intval($cid),"=");
   
   $result = $query->limit(10)->execute();
-
+ 
+  $build['add_link'] = array(
+    "#type"=>'markup',
+    '#markup' => l("Add a new admin user","developer/{$cid}/admins/add"),
+	'#prefix' => '<div class="add-admin">',
+	'#suffix' => '</div>',
+  );
   $rows = array();
   foreach ($result as $row)
   {
+    $user_data = user_load($row->uid);
+	if(isset($user_data->field_full_name['und']['0']['value'])) {
+	  $full_name = $user_data->field_full_name['und']['0']['value'];
+	 }
     $rows[] = array('data' => array(
-      $row->uid,
-      l($row->name,"user/{$row->uid}"),
-      l($row->mail,"mailto:{$row->mail}"),
-      l("delete","developer/{$cid}/admins/{$row->uid}/delete")
+      '<div class="ajax-edit-admin" id="'.$row->uid.'">'.$row->name.'</div>',
+	  render(drupal_get_form('hmfl_password_reset',$row->uid)),
+      '<div class="ajax-edit-email" id="'.$row->uid.'">'.$row->mail.'</div>',
+	  '<div class="admin-full-name" id='.$row->uid.'">'.$full_name.'</div>',
+     '<a class="delete-developer-admin" href="/developer/'.arg(1).'/admins/'.$row->uid.'/delete"><img src="'.$base_url.'/sites/all/themes/hmfl/images/delete.png"/>',
     ));
   }
   $build['pager_table'] = array(
@@ -447,10 +507,7 @@ function hmfl_developer_admins($cid)
     '#rows' => $rows,
     '#empty' => t('There are no admins yet'),
   );
-  $build['add_link'] = array(
-    "#type"=>'markup',
-    '#markup' => l("add admin","developer/{$cid}/admins/add")
-  );
+  
   $build['pager_pager'] = array('#theme' => 'pager');
   return $build;
 }
@@ -549,7 +606,7 @@ function hmfl_developer_admin_validate( &$form , &$form_state )
 {
   foreach($form['users'] as $user)
   {
-    if(isset($user['uid'])&&$user['uid']['#value']) return true;
+    if(is_array($user)&&isset($user['uid'])&&$user['uid']['#value']) return true;
   }
   if(empty($form['new_user_name']['#value'])&&empty($form['new_user_email']['#value']))
   {
@@ -606,7 +663,7 @@ function hmfl_developer_admin_submit($form, &$form_state)
     );
     $account = user_save('', $fields);
     $account->password = $fields['pass'];
-//       drupal_mail('user', 'register_no_approval_required', $form['new_user_email']['#value'], NULL, array('account' => $account), variable_get('site_mail', 'noreply@example.com'));
+      drupal_mail('user', 'register_no_approval_required', $form['new_user_email']['#value'], NULL, array('account' => $account), variable_get('site_mail', 'noreply@example.com'));
 
     $admin = entity_create("hmfl_developer_admin",array("developer_id"=>$developer_id, "user_id"=>$account->uid));
     entity_save("hmfl_developer_admin",$admin);
@@ -677,6 +734,307 @@ foreach ( $eid as $id) {
 function hmfl_developer_dashboard()
 {
   return hmfl_developer_list();
+}
+
+function hmfl_developer_assign_pdf($form, &$form_state) {
+  
+  $selected = $form_state['values']['developments'];
+
+  $form['pdfs'] = array(
+  '#title' => t('Select PDFs to assign'),
+  '#type' => 'select',
+  '#options' => $pdf_list = get_dev_pdf_list(),
+  '#multiple' => TRUE,
+  '#description' => t('You can select multiple pdfs'),
+  ); 
+  
+  $form['developments'] = array(
+   '#title' => t('Select developments to assign pdfs to'),
+   '#type' => 'select',
+   '#options' => $dev_list = get_dev_list(),
+   '#multiple' => FALSE,
+   '#description' => t('You can select multiple devs'),
+   '#default_value' => $selected,
+   '#validated' => TRUE,
+  '#ajax' => array(
+      // When 'event' occurs, Drupal will perform an ajax request in the
+      // background. Usually the default value is sufficient (eg. change for
+      // select elements), but valid values include any jQuery event,
+      // most notably 'mousedown', 'blur', and 'submit'.
+      // 'event' => 'change',
+      'callback' => 'ajax_plots', 
+      'wrapper' => 'dropdown-second-replace',
+       'method' => 'replace',
+      'effect' => 'fade',
+  ),
+  );
+  
+  $form['plots'] = array(
+   '#title' => t('Select Plots to assign pdfs to'),
+   '#type' => 'select',
+  '#multiple' => TRUE,
+   '#prefix' => '<div id="dropdown-second-replace">', 
+    '#suffix' => '</div>',
+   '#description' => t('You can select multiple plots'),
+   '#options' =>  ajax_options($selected), 
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+	'#value' => t('Assign'),
+  );
+  $form['#submit'][] = 'hmfl_dev_pdf_assign_submit';
+ 
+ return $form;
+}
+
+function ajax_plots($form ,&$form_state) {
+  return $form['plots'];
+}
+
+function ajax_options($dev_id) {
+   
+    $id = $dev_id; 
+     $list = array();
+       if ($id) {
+        $plots = db_query("SELECT id as plot_id, name as name FROM hmfl_plot WHERE development_id = '$id'");
+        foreach($plots as $plot) {
+          $list[$plot->plot_id] = $plot->name.' ('.$plot->plot_id.')';
+       
+        }
+         return $list;
+      }
+      else {
+         return $_SESSION['all'];
+       }
+
+}
+
+function get_dev_pdf_list() {
+  $dev_id = arg(1);
+  $list = array();
+
+  $pdfs = db_query("SELECT id as pdf_id,title as title FROM hmfl_development_pdf");
+  foreach ($pdfs as $pdf) {
+    $list[$pdf->pdf_id] = $pdf->title.' ('.$pdf->pdf_id.')';
+  }
+ return $list;
+}
+
+function get_dev_plot_list() {
+  $dev_id = arg(1);
+  $list = array();
+  $development_ids = db_query("SELECT id FROM hmfl_development WHERE developer_id = '$dev_id'");
+    foreach($development_ids as $development_id){ 
+       $plots = db_query("SELECT id as plot_id, name as name FROM hmfl_plot WHERE development_id = '$development_id->id'");
+        foreach($plots as $plot) {
+          $list[$plot->plot_id] = $plot->name.' ('.$plot->plot_id.')';
+       }
+    }
+ return $list;
+}
+
+function get_dev_list(){
+ $dev_id = arg(1);
+  $list = array();
+    $list['0'] = '-All-';
+  $development_ids = db_query("SELECT id,title FROM hmfl_development WHERE developer_id = '$dev_id'");
+    foreach($development_ids as $development_id){ 
+          $list[$development_id->id] = $development_id->title.' ('.$development_id->id.')';
+       }
+    
+ return $list;
+ }
+function hmfl_dev_pdf_assign_submit($form ,&$form_state) {
+   $fail ='';
+   $success = '';
+   foreach ($form_state['values']['pdfs'] as $pdf) { 
+      foreach ($form_state['values']['plots'] as $plot) {	    
+		$check = db_query("SELECT COUNT(id) as id FROM hmfl_plot_pdf WHERE pdf_id = '$pdf' AND plot_id = '$plot'");
+		  //to check whether pdf is already assigned to plot
+		  foreach ($check as $chec) {
+		     $count = $chec->id;
+		   }
+        if (!$count) {
+          // if not assigned then assign otherwise skip
+        	db_insert('hmfl_plot_pdf')
+           ->fields(array(
+             'plot_id' => $plot,
+             'pdf_id' => $pdf,
+           ))
+           ->execute();
+		   $success[] = 'PDF '.$pdf.' assigned to Plot '.$plot;
+		}
+		else {
+		   $fail[] = 'PDF '.$pdf.' is already assigned to Plot '.$plot;
+		}
+      }
+    }
+  if ($fail || $success) {
+    foreach ($fail as $f) {
+	  drupal_set_message($f, $type= 'warning');
+	}
+	foreach ($success as $s) {
+	  drupal_set_message($s);
+	}
+  }
+}
+
+function hmfl_developer_init() {
+  
+ $dev_id = arg(1);
+  $list = array();
+  $development_ids = db_query("SELECT id FROM hmfl_development WHERE developer_id = '$dev_id'");
+    foreach($development_ids as $development_id){ 
+       $plots = db_query("SELECT id as plot_id, name as name FROM hmfl_plot WHERE development_id = '$development_id->id'");
+        foreach($plots as $plot) {
+          $list[$plot->plot_id] = $plot->name.' ('.$plot->plot_id.')';
+       }
+    }
+    $_SESSION['all'] = $list;
+ }
+ 
+function get_admin_details() {
+  
+  $query = db_query("SELECT COUNT(id) as id FROM hmfl_developer");
+  foreach($query as $quer) {
+    $total_developers = $quer->id;
+   }
+ $query2 = db_query("SELECT COUNT(id) as id FROM hmfl_development");
+  foreach($query2 as $quer2) {
+    $total_developments = $quer2->id;
+  }
+ $query3 = db_query("SELECT COUNT(id) as id FROM hmfl_plot");
+  foreach($query3 as $quer3) {
+    $total_plots = $quer3->id;
+   } 
+$out = '<table>
+<tr>
+<td padding="10"><img src="/sites/default/files/classic_folios.jpg" height="120" width="120"/></td>
+<td><div style="padding: 10px;"><h1 style="font-size: 20px;">myHomefiles</h1><br/>'.$total_developers.' developers<br/>'.$total_developments.' developments<br/>'.$total_plots.' plots</div></td>
+</tr>
+</table>';
+  return $out;
+}
+
+function hmfl_developer_ajax_update() {
+  $title = $_REQUEST['value'];
+  $id = $_REQUEST['id'];
+  
+  db_update('hmfl_developer')
+           ->fields(array(
+             'title' => $title,
+           ))
+		   ->condition('id',$id,'=')
+           ->execute();
+     print $title;
+}
+
+function hmfl_developer_ajax_admin_update() {
+   $name = $_REQUEST['value'];
+   $id = $_REQUEST['id'];
+   $user = user_load($id);
+   $user->name = $name;
+   user_save($user);
+   print $name;
+}
+
+function hmfl_developer_ajax_admin_full_name() {
+  $name = $_REQUEST['value'];
+  $id = $_REQUEST['id'];
+  $user = user_load($id);
+  $user->field_full_name['und']['0']['value'] = $name;
+  user_save($user);
+  print $name;
+}
+
+function hmfl_developer_ajax_admin_email() {
+  $email = $_REQUEST['value'];
+  $id = $_REQUEST['id'];
+ if (valid_email_address($email)) {
+   $user = user_load($id);
+   $user->mail = $email;
+   user_save($user);
+   print $email;
+ }
+  else {
+   print 'Invalid email';
+ }
+}
+
+function hmfl_pass_perm() {
+  global $user;
+  if (in_array('administrator',$user->roles) || in_array('developer admin',$user->roles) || in_array('development admin',$user->roles)) {
+    return TRUE;
+  }
+}
+
+function hmfl_password_reset($form,&$form_state,$uid) {
+   $form = array();
+   $form['submit'] = array(
+     '#type'=>'submit',
+	 '#value'=> t('Reset'),
+	 '#submit' => array('hmfl_password_reset_submit'),
+	);
+	$form['uid'] = array(
+	'#type'=> 'hidden',
+	'#value' => $uid,
+	);
+	return $form;
+}
+   
+function hmfl_password_reset_submit($form,&$form_state) {   
+   $uid = $form_state['values']['uid'];
+   $account = user_load($uid);
+   drupal_mail('user', 'password_reset', $account->mail, NULL, array('account' => $account), variable_get('site_mail', 'noreply@example.com'));
+   drupal_set_message('Password recovery email send to user '.$account->name);
+}
+
+function hmfl_developer_main_page($id) {
+  $plot_module_enabled = module_exists('hmfl_plot');
+  $header = array(
+    array('data' => t('Development'),'width'=>300),
+	array("data"=>t('Total plots'),'width'=>50),
+    array("data"=>"",'width'=>50),
+	array("data"=>"",'width'=>50),
+  );
+
+  $query = db_select('hmfl_development','h')->extend('PagerDefault');
+  $query->fields('h', array('id', 'title'));
+  $query->condition('developer_id',$id,'=');
+  $result = $query
+    ->limit(10)
+    ->execute();
+  
+	
+  $rows = array();
+  foreach ($result as $row)
+  {
+  $query2 = db_query("SELECT COUNT(id) as id FROM hmfl_plot WHERE development_id ='$row->id'");
+  foreach($query2 as $quer2) {
+    $total_plots = $quer2->id;
+   } 
+    $rows[] = array('data' => array(
+     '<div class="development-title-ajax-edit" id="'.$row->id.'">'.$row->title.'</div>',
+      $total_plots,
+	  l("Go to development",'development/'.$row->id),
+     '<a class="delete-development" href="/development/'.$row->id.'/delete"><img src="'.$base_url.'/sites/all/themes/hmfl/images/delete.png"/>',
+    ));
+  }
+ $build['add_development'] = array(
+      "#type"=>"markup",
+      "#markup"=> '<div class="hide-fields">'.render(drupal_get_form('hmfl_development_new',arg(1))).'</div>',
+    );
+  $build['pager_table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('There are no developments yet'),
+  );
+
+  $build['pager_pager'] = array('#theme' => 'pager');
+  return $build;
+
+
 }
 
 ?>

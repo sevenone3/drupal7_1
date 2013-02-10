@@ -11,6 +11,22 @@ function hmfl_menu()
       ),
       'type' => MENU_LOCAL_TASK,
     ),
+    
+   'find-nearby-places' => array(
+      'title' => 'HMFL Admin',
+      'page callback' => 'hmfl_nearby_places',
+      'access callback' => TRUE,
+      'type' => MENU_LOCAL_TASK,
+    ),
+    
+	'quick-search' => array(
+      'title' => 'HMFL quick search',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('hmfl_quick_search'),
+	  'access callback' => TRUE,
+      'type' => MENU_CALLBACK,
+    ),
+
     "hmfl_login" => array(
       'page callback' => 'hmfl_access_denied_redirect',
       'access callback' => 'hmfl_access_callback',
@@ -140,5 +156,146 @@ function hmfl_dashboard()
     }
   }
 }
+
+function hmfl_nearby_places() {
+  $iframe = '<div id="iframe-place" style="width: 960px; margin: 0 auto;"><iframe src = "http://www.transportdirect.info/Web2/Maps/FindMapInput.aspx" align=bottom width = "960" height = "600" style="border: 1px solid;width: 1022px;"></iframe></div>';
+  print $iframe;
+ 
+}
+
+
+function hmfl_user_login(&$edit, $account) {
+  global $base_url;
+  $value = 1;
+  $path = request_path();
+  setcookie("login_count", $value);
+  $account->data['login_path'] = $path;
+  user_save($account);
+}
+
+function hmfl_quick_search($form ,&$form_state) {
+ $selected_developer = $form_state['values']['developer']; 
+ $selected_development = $form_state['values']['development'];
+
+
+ $form['quick-search'] = array(
+   '#type' => 'item',
+   '#markup' => t('Quick Search'),
+  );
+ $form['developer'] = array(
+  '#type' => 'select',
+ // '#title' => t('Developer'),
+  '#options' => hmfl_quick_search_developer(),
+  '#validated' => TRUE,
+  '#ajax' => array(
+      // When 'event' occurs, Drupal will perform an ajax request in the
+      // background. Usually the default value is sufficient (eg. change for
+      // select elements), but valid values include any jQuery event,
+      // most notably 'mousedown', 'blur', and 'submit'.
+      // 'event' => 'change',
+      'callback' => 'ajax_development', 
+      'wrapper' => 'dropdown-second-replace',
+       'method' => 'replace',
+      'effect' => 'fade',
+  ),
+ );
+  
+ $form['development'] = array(
+  '#type' => 'select',
+ // '#title' => t('Development'),
+  '#options' => hmfl_quick_search_development($selected_developer),
+  '#validated' => TRUE,
+  '#ajax' => array(
+      // When 'event' occurs, Drupal will perform an ajax request in the
+      // background. Usually the default value is sufficient (eg. change for
+      // select elements), but valid values include any jQuery event,
+      // most notably 'mousedown', 'blur', and 'submit'.
+      // 'event' => 'change',
+      'callback' => 'ajax_plots_search', 
+      'wrapper' => 'dropdown-third-replace',
+       'method' => 'replace',
+      'effect' => 'fade',
+  ),
+  '#prefix' => '<div id="dropdown-second-replace">', 
+  '#suffix' => '</div>',
+ );
+ 
+ $form['plot'] = array(
+  '#type' => 'select',
+ // '#title' => t('Plot'),
+  '#options' => hmfl_quick_search_plot($selected_development),
+  '#prefix' => '<div id="dropdown-third-replace">', 
+  '#suffix' => '</div>',
+ );
+ 
+ $form['submit'] = array(
+  '#type' => 'submit',
+  '#value' => t('Go'),
+  '#submit' => array('hmfl_quick_search_submit'),
+ );
+ 
+ return $form;
+
+}
+
+function ajax_development($form ,&$form_state) {
+  return $form['development'];
+}
+
+function ajax_plots_search($form, &$form_state) {
+  return $form['plot'];
+}
+
+
+function hmfl_quick_search_developer() {
+  $developer = array();
+  $developer['0'] = 'Select Developer';
+  $result = db_query("SELECT * FROM hmfl_developer");
+  foreach ($result as $res) {
+    $developer[$res->id] = $res->title;
+  }
+ 
+ return $developer;
+}
+function hmfl_quick_search_development($id) {
+  $development = array();
+  $development['0'] = 'Select Development';
+  $result = db_query("SELECT * FROM hmfl_development WHERE developer_id ='$id'");
+  foreach ($result as $res) {
+    $development[$res->id] = $res->title;
+  }
+ 
+ return $development;
+}
+
+function hmfl_quick_search_plot($id) {
+  $plot = array();
+  $plot['0'] = 'Select Plot';
+  $result = db_query("SELECT * FROM hmfl_plot WHERE development_id ='$id'");
+  foreach ($result as $res) {
+    $plot[$res->id] = $res->name;
+  }
+
+ return $plot;
+}
+
+function hmfl_quick_search_submit($form, &$form_state) {
+  $developer_id = $form_state['values']['developer'];
+  $development_id = $form_state['values']['development'];
+  $plot_id = $form_state['values']['plot'];
+  
+  if($developer_id !=0 && $development_id == 0 && $plot_d == 0) {
+    drupal_goto('developer/'.$developer_id);
+  }
+  if ($development_id !=0 && $plot_id == 0) {
+    drupal_goto('development/'.$development_id);
+  }
+  if ($plot_id != 0) {
+    drupal_goto('plot/'.$plot_id);
+  }
+  
+}
+
+  
 
 ?>

@@ -177,6 +177,9 @@ function hmfl_table($variables) {
   return $output;
 }
 
+
+
+
 // function hmfl_variables($hook, $vars) {
 //   switch ($hook) {
 //     case 'page':

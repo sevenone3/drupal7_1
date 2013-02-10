@@ -12,8 +12,11 @@ body{
   margin:auto;
 }
 
+.invisible {
+  display: none;
+}
 .page .header .headerPannel{
-  height:30px;
+  //height:30px;
   padding:20px;
 }
 .logo{
@@ -66,12 +69,14 @@ ul#menu li:first-child
   padding: 0px 10px ;
 }
 .short-menu {
-  width: 810px;
+  width: 800px;
   background: #B4C2CF;
-  height: 20px;
-  line-height: 20px;
-  padding: 5px;
+  height: 26px;
+  line-height: 26px;
   float: right;
+  border-width: 2px;
+  border-style: solid;
+  padding: 0 10px 0 10px;
 }
  .logo{
   width:168px;
@@ -106,13 +111,21 @@ ul#menu li:first-child
 }
 
 .page .header .banner{
-  text-align:center;
+  
+}
+
+.development-logo {
+  height: 210px;
+  width: 270px;
+  position: absolute;
+  top: 40px;
+  left: 40px;
 }
 
 .page .pageContent .pageRight{
   float:right;
   width:570px;
-  margin-right:10px;
+  margin-right:40px;
 }
 .page .pageContent .pageLeft{
   float:left;
@@ -126,8 +139,7 @@ ul#menu li:first-child
   padding:0;
 }
 .page .pageContent{
-  margin-top:20px;
-  padding:30px;
+  padding:20px;
   padding-bottom:100px;
 }
 
@@ -230,4 +242,39 @@ p{
 }
 .banner {
   margin-top: 10px;
+}
+.title-plot {
+  margin-top: 0;
+}
+.developer_logo {
+  margin-bottom: 20px;
+}
+.banner-logo {
+  padding: 20px;
+  position: relative;
+}
+.short-menu {
+    text-align: right;
+}
+.content-fsq {
+    border: 1px solid lightgray;
+    padding: 20px;
+    margin-bottom: 20px;
+    margin-top: 5px;
+    background: #fff;
+}
+#customer_care #faqq {
+    background: #ccc;
+    border: 1px solid;
+    margin-top: 5px;
+    padding: 5px;
+}
+#customer_care li {
+  list-style-type: none;
+}
+#customer_care ul {
+  padding-left: 0;
+}
+.fc-header-right {
+  display: none;
 }

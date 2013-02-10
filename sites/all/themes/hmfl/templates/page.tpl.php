@@ -41,23 +41,39 @@
                         </div>
                         <br class="clear"/>
                     </div>
+					<?php if ($page['quick_search']): ?>
+                                   <div id="quick-searh-region">
+                                     <?php print render($page['quick_search']); ?>
+                                   </div>
+                                <?php endif; ?>
                     <div class="main-content">
-
+<?php //<a href="/find-nearby-places" rel="lightframe[|width: 1220px; height: 560px;]" title="my caption">click here!</a>; ?>
                         <div class="box-container">
-                            <?php if(!empty($tabs['#primary'])||!empty($tabs['#secondary'])): ?>
-                            <div class="colored">
-                                <div style="float:left">
-                                </div>
-                                <div style="float:right;">
-                                <?php print render($tabs); ?>
-                        
-                                </div>
-                                <div style="clear:both"></div> 
-                            </div>
-                            <?php endif; ?>
+                          
                             <div>
 
                                 <div class="box3">
+                                <?php if ($page['content_top']): ?>
+                                   <div id="content-top">
+                                     <?php print render($page['content_top']); ?>
+                                   </div>
+                                <?php endif; ?>
+								
+								
+								<?php print $messages; ?>
+								 
+
+								 <?php if(!empty($tabs['#primary'])||!empty($tabs['#secondary'])): ?>
+                            <div class="colored">
+                                <div style="float:left">
+                                </div>
+                                
+                                <?php print render($tabs); ?>
+                        
+                                
+                                <div style="clear:both"></div> 
+                            </div>
+                            <?php endif; ?>
                                 <?php print render($page['content']);?>
                                 </div>
 

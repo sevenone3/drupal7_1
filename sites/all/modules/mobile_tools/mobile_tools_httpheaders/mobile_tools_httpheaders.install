@@ -1,0 +1,8 @@
+<?php
+
+/**
+ * @file
+ * Install file for mobile_tools_httpheaders
+ */
+
+// @todo add schema alter for device groups to add http header storage

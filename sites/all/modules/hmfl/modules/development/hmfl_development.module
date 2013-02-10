@@ -42,10 +42,27 @@ function hmfl_development_menu()
       'type' =>  MENU_LOCAL_TASK,
       'weight' => -10,
     ),
-    'development/%/delete' => array(
-      'title' => 'Delete',
+	
+	'dev/title/ajax-update' => array(
+      'title' => 'New',
+      'page callback' => 'hmfl_development_title_ajax',
+      'access callback' => TRUE,
+	 ),
+	  
+	'development/%/delete' => array(
+     // 'title' => 'Delete',
+        'page callback' => 'hmfl_development_confirm_delete',
+        'page arguments' => array(1),
+        'access callback' => 'hmfl_developer_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_CALLBACK,
+    ),
+	
+    
+	'development/%/pdf-batch-upload' => array(
+      'title' => 'PDF Batch upload',
         'page callback' => 'drupal_get_form',
-        'page arguments' => array('hmfl_development_confirm_delete', 1),
+        'page arguments' => array('hmfl_development_batch_pdf', 1),
         'access callback' => 'hmfl_developer_admin_check',
         'access arguments' => array(1),
         'type' => MENU_LOCAL_TASK,
@@ -79,6 +96,23 @@ function hmfl_development_menu()
     'development/%/admins' => array(
       'title' => 'Admins',
         'page callback' => 'hmfl_development_admins',
+        'page arguments' => array(1),
+        'access callback' => 'hmfl_development_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_LOCAL_TASK,
+    ),
+	
+	'development/%/plots-csv' => array(
+      'title' => 'Plots CSV',
+        'page callback' => 'hmfl_csv',
+        'page arguments' => array(1),
+        'access callback' => 'hmfl_development_admin_check',
+        'access arguments' => array(1),
+        'type' => MENU_LOCAL_TASK,
+    ),
+	'development/%/plots-csv/export' => array(
+      'title' => 'Plots CSV Export',
+        'page callback' => 'hmfl_csv_export',
         'page arguments' => array(1),
         'access callback' => 'hmfl_development_admin_check',
         'access arguments' => array(1),
@@ -261,75 +295,37 @@ function hmfl_development_administration_page()
   return "";
 }
 
-function hmfl_development_list($cid=0)
+function hmfl_development_list($id)
 {
-  $cid = intval($cid);
-
   $plot_module_enabled = module_exists('hmfl_plot');
   $header = array(
-    array('data' => t('ID'),'width' => 100),
     array('data' => t('Development'),'width'=>300),
+	array('data' => t('Total plots'),'width'=>300),
     array("data"=>"",'width'=>50),
-    array("data"=>"",'width'=>50),
-    array("data"=>"",'width'=>50),
+	array("data"=>"",'width'=>50),
   );
 
-  $query = db_select('hmfl_development', 'h')->extend('PagerDefault');
+  $query = db_select('hmfl_development','h')->extend('PagerDefault');
   $query->fields('h', array('id', 'title'));
-  $is_admin = false;
-  if($cid)
-  {
-    $is_admin = true;
-    $build['add_development'] = array(
-      "#type"=>"markup",
-      "#markup"=>l("add development","developer/{$cid}/developments/new")
-    );
-    $query->condition("h.developer_id",$cid);
-
-
-  }
-  
-  if(!$cid)
-  {
-    //get user developments
-    global $user;
-    $query1 = db_select("hmfl_development_admin","d")->extend('PagerDefault');
-    $query1->addField('d', 'development_id', 'id');
-    $query1->condition("d.user_id",$user->uid);
-    $query2 = db_select("hmfl_developer_admin","c");
-    $query2->fields("d",array("id"))->condition("c.user_id",$user->uid);
-    $query2->join("hmfl_development","d","d.developer_id=c.developer_id");
-    $query1->union($query2);
-    $result = $query1->limit(10)->execute();
-    $developments = array();
-    foreach($result as $row)
-    {
-      $developments[] = $row->id;
-    }
-
-    if(empty($developments))
-    {
-      $query->condition('h.id',0); //just to cancel all rows
-    }
-    else
-    {
-      $query->condition('h.id', $developments,'IN');
-    }
-  }
-
+  $query->condition('developer_id',$id,'=');
+ 
   $result = $query
     ->limit(10)
     ->execute();
-
+	
   $rows = array();
   foreach ($result as $row)
   {
+   $query2 = db_query("SELECT COUNT(id) as id FROM hmfl_plot WHERE development_id ='$row->id'");
+  foreach($query2 as $quer2) {
+    $total_plots = $quer2->id;
+   } 
+  
     $rows[] = array('data' => array(
-      $row->id,
-      l($row->title,"development/{$row->id}"),
-      $is_admin?l("edit","development/{$row->id}/edit"):"",
-      l("admins","development/{$row->id}/admins"),
-      l("delete","development/{$row->id}/delete")
+     '<div class="development-title-ajax-edit" id="'.$row->id.'">'.$row->title.'</div>',
+	 $total_plots,
+     l("Go to development",'development/'.$row->id),
+	 '<a class="delete-development" href="/development/'.$row->id.'/delete"><img src="'.$base_url.'/sites/all/themes/hmfl/images/delete.png"/>',
     ));
   }
 
@@ -342,6 +338,7 @@ function hmfl_development_list($cid=0)
 
   $build['pager_pager'] = array('#theme' => 'pager');
   return $build;
+
 }
 
 
@@ -413,7 +410,7 @@ function hmfl_development_submit($form, &$form_state)
   }
 
 
-  $form_state['redirect'] = hmfl_development_uri($development);
+//  $form_state['redirect'] = hmfl_development_uri($development);
 
   drupal_set_message(t('Development %title saved.', array('%title' => entity_label('hmfl_development', $development))));
 }
@@ -459,32 +456,17 @@ function hmfl_development_edit($form, &$form_state, $id)
   return $form;
 }
 
-function hmfl_development_confirm_delete($form, &$form_state, $did)
+function hmfl_development_confirm_delete($did)
 {
   $development = entity_load('hmfl_development', array(intval($did)), array(), false);
-  if(!isset($development[$did]))
-  {
-    drupal_set_message("Invalid request","error");
-  }
-  else
-  {
-    $development = $development[$did];
-
-      $form_state['development'] = $development;
-      return confirm_form($form,t('Are you sure you want to delete the %title development?',array('%title' => $development->title)),"developer/{$development->developer_id}/developments",t('This action is not reversible'),t('Delete'),t('Cancel'));
-  }
-  return $form;
-}
-
-function hmfl_development_confirm_delete_submit($form, &$form_state)
-{
-  $development = $form_state['development'];
-  $cid = $development->developer_id;
+  db_query("DELETE FROM hmfl_development WHERE id='$did'");
   entity_delete("hmfl_development",$development->id);
   entity_delete("hmfl_development_admin",$development->id);
   drupal_set_message("development deleted");
-  $form_state['redirect'] = "developer/{$cid}/developments";
+  drupal_goto('developer/'.$development[$did]->developer_id);
 }
+
+
 function hmfl_development_json($id)
 {
 
@@ -541,9 +523,10 @@ function hmfl_development_admins($did)
 {
 
   $header = array(
-    array('data' => t('id'),'width' => 100),
-    array('data' => t('Name'),'width'=>300),
+    array('data' => t('User name'),'width'=>300),
+	array('data' => t('Password'),'width' =>200),
     array("data"=> t("Email"),'width'=>200),
+	array("data"=> t("Full name"),'width'=>200),
     array("data"=>"",'width'=>50),
   );
 
@@ -553,27 +536,44 @@ function hmfl_development_admins($did)
   $query->condition("h.development_id",intval($did),"=");
   
   $result = $query->limit(10)->execute();
-
+ 
+ 
   $rows = array();
   foreach ($result as $row)
   {
+    $user_data = user_load($row->uid);
+	if(isset($user_data->field_full_name['und']['0']['value'])) {
+	  $full_name = $user_data->field_full_name['und']['0']['value'];
+	 }
     $rows[] = array('data' => array(
-      $row->uid,
-      l($row->name,"user/{$row->uid}"),
-      l($row->mail,"mailto:{$row->mail}"),
-      l("delete","development/{$did}/admins/{$row->uid}/delete")
+      '<div class="ajax-edit-admin" id="'.$row->uid.'">'.$row->name.'</div>',
+	  render(drupal_get_form('hmfl_password_reset',$row->uid)),
+      '<div class="ajax-edit-email" id="'.$row->uid.'">'.$row->mail.'</div>',
+	  '<div class="admin-full-name" id='.$row->uid.'">'.$full_name.'</div>',
+     '<a class="delete-developer-admin" href="/development/'.arg(1).'/admins/'.$row->uid.'/delete"><img src="'.$base_url.'/sites/all/themes/hmfl/images/delete.png"/>',
     ));
   }
+  
+  
+   $build['add_link'] = array(
+    "#type"=>'markup',
+    '#markup' => l("Add a new admin user","development/{$did}/admins/add"),
+	'#prefix'=> '<div class="add-admin">',
+	'#suffix'=>'</div>',
+  );
+  $build['back_link'] = array(
+    "#type"=>'markup',
+    '#markup' => l("< Back to plots","development/{$did}/plots"),
+	'#prefix'=> '<div class="back-plots">',
+	'#suffix'=>'</div>',
+  );
   $build['pager_table'] = array(
     '#theme' => 'table',
     '#header' => $header,
     '#rows' => $rows,
     '#empty' => t('There are no admins yet'),
   );
-  $build['add_link'] = array(
-    "#type"=>'markup',
-    '#markup' => l("add admin","development/{$did}/admins/add")
-  );
+ 
   $build['pager_pager'] = array('#theme' => 'pager');
   return $build;
 }
@@ -672,7 +672,7 @@ function hmfl_development_admin_validate( &$form , &$form_state )
 {
   foreach($form['users'] as $user)
   {
-    if(isset($user['uid'])&&$user['uid']['#value']) return true;
+    if(is_array($user)&&isset($user['uid'])&&$user['uid']['#value']) return true;
   }
   if(empty($form['new_user_name']['#value'])&&empty($form['new_user_email']['#value']))
   {
@@ -701,7 +701,7 @@ function hmfl_development_admin_submit($form, &$form_state)
   $uids = array();
   foreach($form['users'] as $user)
   {
-    if(isset($user['uid'])&&$user['uid']['#value'])
+    if(is_array($user)&&isset($user['uid'])&&$user['uid']['#value'])
     {
       $uid = intval($user['uid']['#value']);
       $admin = entity_create("hmfl_development_admin",array("development_id"=>$development_id, "user_id"=>$uid));
@@ -729,13 +729,13 @@ function hmfl_development_admin_submit($form, &$form_state)
     );
     $account = user_save('', $fields);
     $account->password = $fields['pass'];
-//       drupal_mail('user', 'register_no_approval_required', $form['new_user_email']['#value'], NULL, array('account' => $account), variable_get('site_mail', 'noreply@example.com'));
+       drupal_mail('user', 'register_no_approval_required', $form['new_user_email']['#value'], NULL, array('account' => $account), variable_get('site_mail', 'noreply@example.com'));
 
     $admin = entity_create("hmfl_development_admin",array("development_id"=>$development_id, "user_id"=>$account->uid));
     entity_save("hmfl_development_admin",$admin);
   }
   $form_state['redirect'] = "development/$development_id/admins";
-  drupal_set_message(t('Updated development admins'));
+  drupal_set_message(t('Updated development admins').$account->password);
 
 }
 
@@ -808,7 +808,7 @@ function hmfl_development_dashboard()
 
 function hmfl_development_pdf_list($did)
 {
-
+  global $base_url;
   $header = array(
     array('data' => t('id'),'width' => 100),
     array('data' => t('title'),'width'=>300),
@@ -828,9 +828,10 @@ function hmfl_development_pdf_list($did)
   foreach ($result as $row)
   {
     $file = file_load($row->fid);
+     $file_link = $base_url.'/sites/all/libraries/pdf.js/web/viewer.html?file='.file_create_url($file->uri);
     $rows[] = array('data' => array(
       $row->id,
-      l($row->title,file_create_url($file->uri)),
+      l($row->title,$file_link),
       l($row->name,"user/{$row->uid}"),
       l("edit","development/{$did}/pdf/{$row->id}/edit"),
       l("delete","development/{$did}/pdf/{$row->id}/delete")
@@ -854,12 +855,6 @@ function hmfl_development_pdf_list($did)
 function hmfl_development_pdf_append_form($form, &$form_state, $entity)
 {
   $form_state['hmfl_development_pdf_entity'] = $entity;
-  $form['pdf_title'] = array(
-    '#type' => 'textfield',
-    '#required' => TRUE,
-    "#title"=>'Title',
-    "#default_value"=>$entity->title
-  );
   $form['pdf_file'] = array(
     '#type'   => "managed_file",
     '#title'  => t("Upload PDF"),
@@ -871,20 +866,6 @@ function hmfl_development_pdf_append_form($form, &$form_state, $entity)
   return $form;
 }
 
-
-
-function hmfl_development_pdf_save($form, &$form_state)
-{
-  $entity = $form_state['hmfl_development_pdf_entity'];
-  $file = file_load($form_state['values']['pdf_file']);
-  $file->status = FILE_STATUS_PERMANENT;
-  file_save($file);
-  $entity->fid = $file->fid;
-  $entity->title = $form_state['values']['pdf_title'];
-  entity_save("hmfl_development_pdf",$entity);
-  file_usage_add($file, 'hmfl_development', 'hmfl_development', $entity->id);
-  return $entity;
-}
 
 function hmfl_development_pdf_form_submit($form, &$form_state)
 {
@@ -901,7 +882,7 @@ function hmfl_development_pdf_form($form, &$form_state,$entity)
   $submit = array();
   $form['actions']['submit'] = array(
     '#type' => 'submit',
-    '#value' => t('submit'),
+    '#value' => t('Submit'),
     '#submit' => $submit + array('hmfl_development_pdf_form_submit'),
   );
   return $form;
@@ -910,7 +891,22 @@ function hmfl_development_pdf_add($form, &$form_state,$did)
 {
   $did = intval($did);
   global $user;
+
   return hmfl_development_pdf_form($form, $form_state,  entity_create("hmfl_development_pdf",array("id"=>"","development_id"=>$did, "title"=>"","user_id"=>$user->uid)));
+
+}
+
+function hmfl_development_pdf_save($form, &$form_state)
+{
+  $entity = $form_state['hmfl_development_pdf_entity'];
+  $file = file_load($form_state['values']['pdf_file']);
+  $file->status = FILE_STATUS_PERMANENT;
+  file_save($file);
+  $entity->fid = $file->fid;
+  $entity->title = $file->filename;
+  entity_save("hmfl_development_pdf",$entity);
+  file_usage_add($file, 'hmfl_development', 'hmfl_development', $entity->id);
+  return $entity;
 }
 
 function hmfl_development_pdf_edit($form, &$form_state,$did, $id)
@@ -950,4 +946,125 @@ function hmfl_development_pdf_confirm_delete_submit($form, &$form_state)
   $form_state['redirect'] = "development/{$pdf->development_id}/pdf";
 } 
 
+function hmfl_csv($dev_id) {
+   $header = array(
+    array('data' => t('Development'),'width' =>300),
+	array('data' => t('PlotNumber'),'width'=>300),
+    array("data"=> t('Password'),'width'=>300),
+  ); 
+  $query = db_query("SELECT title as title from hmfl_development WHERE id = '$dev_id'");
+   $rows = array();
+   foreach($query as $que) {
+     $new_query = db_query("SELECT name as name,id as id,user_id as uid FROM hmfl_plot WHERE development_id = '$dev_id'");
+	  foreach($new_query as $new) {
+	    $password = db_query("SELECT password as password FROM hmfl_plot_temporary_password WHERE id = '$new->id'");
+		   foreach($password as $pass) {
+		        $user = user_load($new->uid);
+		        $rows[] = array('data' => array(
+	            l($que->title,'development/'.$dev_id),
+		        $user->name,
+				$pass->password,
+		      ));
+			}
+        }
+	}
+ 
+  $build['pager_table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('There are no Plots'),
+  );
+   $build['export_to_csv'] = array(
+      "#type"=>"markup",
+      "#markup"=>l("Export this list to csv","development/{$dev_id}/plots-csv/export")
+    );
+	
+  $build['pager_pager'] = array('#theme' => 'pager');
+  return $build;
+}
+
+function hmfl_csv_export($dev_id) { 
+   
+	$headers = array( 'Development','PlotNumber','Password');
+
+  $query = db_query("SELECT title as title from hmfl_development WHERE id = '$dev_id'");
+   $rows = array();
+   foreach($query as $que) {
+     $new_query = db_query("SELECT name as name,id as id,user_id as uid FROM hmfl_plot WHERE development_id = '$dev_id'");
+	  foreach($new_query as $new) {
+	    $password = db_query("SELECT password as password FROM hmfl_plot_temporary_password WHERE id = '$new->id'");
+		   foreach($password as $pass) {
+		        $user = user_load($new->uid);
+		        $rows[] = array(
+	            'dev' => $que->title,
+				'login' => $user->name,
+				'pass' => $pass->password,
+		      );
+			}
+        }
+	}
+   $filename = "development_{$dev_id}_plot_users";
+   header('Content-Type: text/x-csv'); 
+   header('Content-Disposition: inline; filename="'.$filename.'.csv"');
+   print join(",",$headers)."\r\n";
+   foreach ($rows as $row) {
+      print implode(',', $row) ."\r\n";
+   } 
+}
+
+
+function hmfl_development_batch_pdf($form ,&$form_state) {
+  $form['pdf_batch'] = array(
+    '#type' => 'plupload',
+    '#title'  => t("Upload PDFs"),
+    '#descripion' => t("Only PDF Files are allowed."),
+    '#upload_location'    => "public://pdf/",
+    "#upload_validators"  => array("file_validate_extensions" => array("pdf")),
+  );
+  
+  $form['submit'] = array(
+    '#type' => 'submit',  
+    '#value' =>  t('Submit'),
+  );
+  
+  $form['#submit'][] = 'hmfl_development_batch_pdf_submit';
+  
+  return $form;
+}
+
+function hmfl_development_batch_pdf_submit($form, &$form_state) {
+ $scheme = 'public://pdf/';
+ foreach ($form_state['values']['pdf_batch'] as $file) {
+ global $user; $dev_id = arg(1);
+   if ($file['status'] == 'done') {
+      $source = $file['tmppath'];
+      $destination = file_stream_wrapper_uri_normalize($scheme . $file['name']);
+      $destination = file_unmanaged_move($source, $destination, FILE_EXISTS_RENAME);
+      $file = plupload_file_uri_to_object($destination);
+	  file_save($file);
+  db_insert('hmfl_development_pdf')
+  ->fields(array(
+    'development_id' => $dev_id,
+    'user_id' => $user->uid,
+    'title' => $file->filename,
+	'fid' => $file->fid,
+  ))
+  ->execute();
+  }
+} 
+  $form_state['redirect'] = "development/{$dev_id}/pdf";
+}
+
+function hmfl_development_title_ajax() {
+ $name = $_REQUEST['value'];
+ $id = $_REQUEST['id'];
+ db_update('hmfl_development')
+  ->fields(array(
+    'title' => $name,
+  ))
+  ->condition('id',$id,'=')
+  ->execute();
+  print $name;
+}
 ?>

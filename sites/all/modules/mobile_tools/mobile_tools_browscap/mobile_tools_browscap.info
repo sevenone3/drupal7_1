@@ -1,0 +1,15 @@
+name = Mobile Tools Browscap
+description = Integrates the Browscap module with Mobile tools for device detection. Also integrations with Mobile Tools Context to give CTools contexts with device information (Not yet implemented).
+core = 7.x
+package = Mobile Tools
+
+dependencies[] = mobile_tools
+dependencies[] = browscap
+
+files[] = mobile_tools_browscap.test
+; Information added by drupal.org packaging script on 2012-08-08
+version = "7.x-3.x-dev"
+core = "7.x"
+project = "mobile_tools"
+datestamp = "1344386061"
+

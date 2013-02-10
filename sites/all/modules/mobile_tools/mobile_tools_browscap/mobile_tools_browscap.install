@@ -1,0 +1,26 @@
+<?php
+
+/**
+ * @file
+ * Install browscap integration with Mobile Tools
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function mobile_tools_browscap_uninstall() {
+  variable_del('mobile_tools_device_detection');
+  variable_del('mobile_tools_device_capabilities');
+  variable_del('mobile_tools_redirect');
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Warn user about required patch to dependency module.
+ * @see http://drupal.org/node/1717242
+ */
+function mobile_tools_browscap_update_7001(&$sandbox) {
+  $t = get_t();
+  drupal_set_message($t('Mobile Tools Browscap requires the following !patch to Browscap module to function correctly. See !issue for more details.', array('!patch' => l('patch', 'http://drupal.org/node/1713570'), '!issue' => l('issue', 'http://drupal.org/node/1717242'))), 'warning');
+}

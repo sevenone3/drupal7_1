@@ -1,0 +1,478 @@
+<?php
+
+function hmfl_styling_menu() {
+   $items = array(
+    'developer/%/styling' => array(
+      'title' => 'Styling',
+      'description' => 'Style fields on plot page',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('hmfl_styling_form'),
+	  'access callback' => 'hmfl_super_admin',
+      'type' => MENU_LOCAL_TASK,
+    ),
+   );
+  return $items;
+}
+
+function hmfl_super_admin()
+{
+ global $user;
+ return in_array("admin",$user->roles)||in_array("administrator",$user->roles);
+}
+
+function hmfl_styling_form($form, &$form_state) {
+ //top strip
+ $id = arg(1);
+ $ban = array();
+ $result = db_query("SELECT * FROM hmfl_styling WHERE developer_id = '$id'");
+  foreach($result as $res) {
+    if($res->top_strip) {
+	  $check = 1;
+	  $ban = explode('/',$res->top_banner);
+	  $top_strip = explode('/',$res->top_strip);
+	  $development_logo = $res->developement_logo;
+	  $developer_logo = $res->developer_logo;
+	  $header_text = explode('/',$res->header_text);
+	  $body_text = explode('/',$res->body_text);
+	  $link_text = explode('/',$res->link_text);
+	  $des_text = explode('/',$res->des_text);
+          $down_links = explode('/',$res->down_links);
+          $menu_text = explode('/',$res->menu_text);
+          $bottom_strip = explode('/',$res->bottom_strip);
+	}
+  }
+  
+ $form['top_strip'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Top strip'),
+    '#tree' => FALSE,
+	'#collapsible' => TRUE,
+  );
+  $form['top_strip']['top_border_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Border color'),
+  '#default_value' => $top_strip[0],
+  );
+  $form['top_strip']['top_background_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Background Color'),
+  '#default_value' =>  $top_strip[1],
+  );
+  $form['top_strip']['top_font_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Font color'),
+  '#default_value' => $top_strip[2],
+  );
+ $form['top_strip']['top_font_hover_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Font hover color'),
+  '#default_value' => $top_strip[3],
+  );
+
+  //development_logo
+  
+  $form['devel_logo'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Development Logo'),
+    '#tree' => FALSE,
+	'#collapsible' => TRUE,
+  );
+  $form['devel_logo']['devel_back_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Border color'),
+  '#default_value' => $development_logo,
+  );
+  $form['top_banner'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Top banner'),
+    '#tree' => FALSE,
+	'#collapsible' => TRUE,
+  );
+  $form['top_banner']['banner_upload'] = array(
+    '#type'   => "managed_file",
+    '#title'  => t("Upload banner"),
+    '#descripion' => t("Only images are allowed."),
+    '#upload_location'    => "public://banner/",
+    "#upload_validators"  => array("file_validate_extensions" => array("png jpg")),
+	'#default_value' => $ban[0],
+	
+  );
+  $form['top_banner']['banner_back_color'] = array(
+    '#type' => 'jquery_colorpicker',
+    '#title' => t('Banner background color'),
+    '#default_value' => $ban[1],
+  );
+  $form['developer_logo'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Developer Logo'),
+    '#tree' => FALSE,
+	'#collapsible' => TRUE,
+  );
+  $form['developer_logo']['developer_logo_is'] = array(
+  '#type' => 'radios',
+  '#title' => t('Turn developer ON or OFF'),
+  '#options' => array('on' => On,'off' => Off),
+  '#default_value' => $developer_logo,
+  );
+ 
+  
+  //header text
+  
+  $form['header_text'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Header text'),
+    '#tree' => FALSE,
+    '#collapsible' => TRUE,
+  );
+  $form['header_text']['head_font_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Header font color'),
+  '#default_value' => $header_text[0],
+  );
+  $form['header_text']['head_font_family'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Header font family'),
+  '#default_value' => $header_text[1],
+  '#size' => 20,
+  );
+  $form['header_text']['head_font_size'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Header font size'),
+  '#default_value' => $header_text[2],
+  '#size' => 5,
+  '#suffix' => px,
+  );
+   $form['header_text']['head_font_weight'] = array(
+  '#type' => 'radios',
+  '#title' => t('Header font weight'),
+  '#options' => array('normal' => Normal,'bold' => Bold),
+  '#default_value' => $header_text[3],
+  );
+  
+ 
+ //body text
+  
+  $form['body_text'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Body text'),
+    '#tree' => FALSE,
+    '#collapsible' => TRUE,
+  );
+  $form['body_text']['body_font_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Body font color'),
+  '#default_value' => $body_text[0],
+  );
+  $form['body_text']['body_font_family'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Body font family'),
+  '#default_value' => $body_text[1],
+  '#size' => 20,
+  );
+  $form['body_text']['body_font_size'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Body font size'),
+  '#default_value' => $body_text[2],
+  '#size' => 5,
+  '#suffix' => px,
+  );
+   $form['body_text']['body_font_weight'] = array(
+  '#type' => 'radios',
+  '#title' => t('Body font weight'),
+  '#options' => array('normal' => Normal,'bold' => Bold),
+  '#default_value' => $body_text[3],
+  );
+  
+  //link text
+  
+  $form['link_text'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Link text'),
+    '#tree' => FALSE,
+    '#collapsible' => TRUE,
+  );
+  $form['link_text']['link_font_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Link font color'),
+  '#default_value' => $link_text[0],
+  );
+  $form['link_text']['link_font_weight'] = array(
+  '#type' => 'radios',
+  '#title' => t('Link font weight'),
+  '#options' => array('normal' => Normal,'bold' => Bold),
+  '#default_value' => $link_text[1],
+  );
+  $form['link_text']['link_underline'] = array(
+  '#type' => 'radios',
+  '#title' => t('Link Underline'),
+  '#options' => array('yes' => Yes,'no' => No),
+  '#default_value' => $link_text[2],
+  );
+  
+  //link text hover
+  
+  $form['link_text']['h_link_font_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Link hover font color'),
+  '#default_value' => $link_text[3],
+  );
+  $form['link_text']['h_link_font_weight'] = array(
+  '#type' => 'radios',
+  '#title' => t('Link hover font weight'),
+  '#options' => array('normal' => Normal,'bold' => Bold),
+  '#default_value' => $link_text[4]
+  );
+  $form['link_text']['h_link_underline'] = array(
+  '#type' => 'radios',
+  '#title' => t('Link Underline'),
+  '#options' => array('yes' => Yes,'no' => No),
+  '#default_value' => $link_text[5],
+  );
+  
+  //description text
+  $form['des_text'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Description text'),
+    '#tree' => FALSE,
+    '#collapsible' => TRUE,
+  );
+  
+  $form['des_text']['des_font_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Description font color'),
+  '#default_value' => $des_text[0],
+  );
+  $form['des_text']['des_font_family'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Description font family'),
+  '#default_value' => $des_text[1],
+  );
+  $form['des_text']['des_font_weight'] = array(
+  '#type' => 'radios',
+  '#title' => t('Description font weight'),
+  '#options' => array('normal' => Normal,'bold' => Bold),
+  '#default_value' => $des_text[2],
+  );
+  $form['des_text']['des_font_size'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Description font size'),
+  '#default_value' => $des_text[3],
+  );
+  $form['des_text']['des_text_underline'] = array(
+  '#type' => 'radios',
+  '#title' => t('Description Underline'),
+  '#options' => array('yes' => Yes,'no' => No),
+  '#default_value' => $des_text[4],
+  );
+  
+  //download links
+
+ $form['down_links'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Download links'),
+    '#tree' => FALSE,
+    '#collapsible' => TRUE,
+  );
+  
+  $form['down_links']['down_font_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Download links font color'),
+  '#default_value' => $down_links[0],
+  );
+  $form['down_links']['down_font_family'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Download links font family'),
+  '#default_value' => $down_links[1],
+  );
+  $form['down_links']['down_font_weight'] = array(
+  '#type' => 'radios',
+  '#title' => t('Download links font weight'),
+  '#options' => array('normal' => Normal,'bold' => Bold),
+  '#default_value' => $down_links[2],
+  );
+  $form['down_links']['down_font_size'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Download links font size'),
+  '#default_value' => $down_links[3],
+  );
+  $form['down_links']['down_text_underline'] = array(
+  '#type' => 'radios',
+  '#title' => t('Download links Underline'),
+  '#options' => array('yes' => Yes,'no' => No),
+  '#default_value' => $down_links[4],
+  );
+  
+  //menu text
+
+$form['menu_text'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Menu text'),
+    '#tree' => FALSE,
+    '#collapsible' => TRUE,
+  );
+  
+  $form['menu_text']['menu_text_font_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Menu text font color'),
+  '#default_value' => $menu_text[0],
+  );
+  $form['menu_text']['menu_text_font_family'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Menu text font family'),
+  '#default_value' => $menu_text[1],
+  );
+  $form['menu_text']['menu_text_font_weight'] = array(
+  '#type' => 'radios',
+  '#title' => t('Menu text font weight'),
+  '#options' => array('normal' => Normal,'bold' => Bold),
+  '#default_value' => $menu_text[2],
+  );
+  $form['menu_text']['menu_text_font_size'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Menu text font size'),
+  '#default_value' => $menu_text[3],
+  );
+  $form['menu_text']['menu_text_text_underline'] = array(
+  '#type' => 'radios',
+  '#title' => t('Menu text Underline'),
+  '#options' => array('yes' => Yes,'no' => No),
+  '#default_value' => $menu_text[4],
+  );
+
+  //bottom strip
+
+  $form['bottom_strip'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Bottom strip'),
+    '#tree' => FALSE,
+    '#collapsible' => TRUE,
+  );
+  
+  $form['bottom_strip']['bottom_strip_back_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Bottom strip back color'),
+  '#default_value' => $bottom_strip[0],
+  );
+  $form['bottom_strip']['bottom_strip_font_color'] = array(
+  '#type' => 'jquery_colorpicker',
+  '#title' => t('Bottom strip font color'),
+  '#default_value' => $bottom_strip[1],
+  );
+
+  $form['pdf_icon'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('PDF icon'),
+    '#tree' => FALSE,
+    '#collapsible' => TRUE,
+  );
+  $form['pdf_icon']['pdf_icon_img'] = array(
+   '#type' => 'managed_file',
+   '#title' => t('Upload icon'),
+   '#upload_location'    => "public://icons",
+   "#upload_validators"  => array("file_validate_extensions" => array("png jpg")),
+  // '#default_value' => $top_strip[0],
+  );
+
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save settings'),
+  );
+  
+   
+  $form['#submit'][] = 'hmfl_styling_submit';
+
+  return $form;
+}
+
+function hmfl_styling_submit($form, &$form_state) {
+  $check= 0;
+  $id = arg(1);
+  $icon = file_load($form_state['values']['pdf_icon_img']);
+  $icon->status = FILE_STATUS_PERMANENT;
+  file_save($icon);
+  file_usage_add($icon, 'hmfl_styling', 'hmfl_styling', $icon->fid);
+
+
+
+   $file = file_load($form_state['values']['banner_upload']);
+   drupal_set_message('Configuration settings saved');
+  
+  $result = db_query("SELECT top_strip,top_banner FROM hmfl_styling WHERE developer_id = '$id'");
+  foreach($result as $res) {
+    if($res->top_strip) {
+	  $check = 1;
+	  $ban = array();
+	  $ban = explode('/',$res->top_banner);
+	}
+  }
+  if ($file) {
+  if ($ban[0] != $file->fid) {
+   $file->status = FILE_STATUS_PERMANENT;
+   file_save($file);
+   file_usage_add($file, 'hmfl_styling', 'hmfl_styling', $id);
+ }
+}  
+  $top_strip = array($form_state['values']['top_border_color'],$form_state['values']['top_background_color'],$form_state['values']['top_font_color'],$form_state['values']['top_font_hover_color']);
+  $top_strip_final = implode ('/',$top_strip);
+  $development_logo = $form_state['values']['devel_back_color'];
+  $top_banner = array($file->fid,$form_state['values']['banner_back_color']);
+  $top_banner_final = implode ('/',$top_banner);
+  $developer_logo = $form_state['values']['developer_logo_is'];
+  $header_text = array($form_state['values']['head_font_color'],$form_state['values']['head_font_family'],$form_state['values']['head_font_size'],$form_state['values']['head_font_weight']);
+  $header_text_final = implode ('/',$header_text);
+  $body_text = array($form_state['values']['body_font_color'],$form_state['values']['body_font_family'],$form_state['values']['body_font_size'],$form_state['values']['body_font_weight']);
+  $body_text_final = implode ('/',$body_text);
+  $link_text = array($form_state['values']['link_font_color'],$form_state['values']['link_font_weight'],$form_state['values']['link_underline'],$form_state['values']['h_link_font_color'],$form_state['values']['h_link_font_weight'],$form_state['values']['h_link_underline']);
+  $link_text_final =  implode ('/',$link_text);
+ 
+  $des_text = array($form_state['values']['des_font_color'],$form_state['values']['des_font_family'],$form_state['values']['des_font_weight'],$form_state['values']['des_font_size'],$form_state['values']['des_text_underline']);
+  $des_text_final = implode ('/',$des_text);
+
+$down_links = array($form_state['values']['down_font_color'],$form_state['values']['down_font_family'],$form_state['values']['down_font_weight'],$form_state['values']['down_font_size'],$form_state['values']['down_text_underline']);
+  $down_links_final = implode ('/',$down_links);
+$menu_text = array($form_state['values']['menu_text_font_color'],$form_state['values']['menu_text_font_family'],$form_state['values']['menu_text_font_weight'],$form_state['values']['menu_text_font_size'],$form_state['values']['menu_text_text_underline']);
+  $menu_text_final = implode ('/',$menu_text);
+  $bottom_strip = array($form_state['values']['bottom_strip_back_color'],$form_state['values']['bottom_strip_font_color']);
+  $bottom_strip_final = implode ('/',$bottom_strip);
+  
+ if (!$check) {
+  db_insert('hmfl_styling')
+  ->fields(array(
+    'developer_id' => arg(1),
+    'top_strip' => $top_strip_final,
+	'development_logo' => $development_logo,
+	'top_banner' => $top_banner_final,
+	'developer_logo' => $developer_logo,
+	'header_text' => $header_text_final,
+	'body_text' => $body_text_final,
+	'link_text' => $link_text_final,
+	'des_text' => $des_text_final,
+        'down_links' => $down_links_final,
+        'menu_text' => $menu_text_final, 
+        'bottom_strip' => $bottom_strip_final, 
+        'pdf_icon' =>  $icon->fid,
+  ))
+  ->execute();
+}
+else {
+db_update('hmfl_styling')
+  ->fields(array(
+    'developer_id' => arg(1),
+    'top_strip' => $top_strip_final,
+	'development_logo' => $development_logo,
+	'top_banner' => $top_banner_final,
+	'developer_logo' => $developer_logo,
+	'header_text' => $header_text_final,
+	'body_text' => $body_text_final,
+	'link_text' => $link_text_final,
+	'des_text' => $des_text_final,
+        'down_links' => $down_links_final,
+        'menu_text' => $menu_text_final, 
+        'bottom_strip' => $bottom_strip_final, 
+        'pdf_icon' =>  $icon->fid,
+  ))
+  ->condition('developer_id',arg(1), '=')
+  ->execute();
+}
+}

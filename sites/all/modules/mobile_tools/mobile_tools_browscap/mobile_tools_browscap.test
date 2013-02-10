@@ -1,0 +1,118 @@
+<?php
+
+/**
+ * @file
+ * Tests for mobile_tools_browscap
+ *
+ * @author Mathew Winstone <mwinstone@coldfrontlabs.ca>
+ */
+
+/**
+ * Test the browscap integration with mobile tools
+ */
+class MobileToolsBrowscapTestCase extends DrupalWebTestCase {
+
+  public static function getInfo() {
+    return array(
+      'name' => t('Device Detection'),
+      'description' => t('Tests Mobile Tools Browscap, and creating/editing/deleting device groups. with device detection enabled.'),
+      'group' => t('Mobile Tools'),
+    );
+  }
+  
+  protected $admin_user;
+  protected $nonadmin_user;
+  protected $device_group;
+  protected $edited_device_group;
+  protected $mainUrl;
+  protected $settingsUrl;
+  protected $addUrl;
+  protected $editUrl;
+  protected $deleteUrl;
+
+  public function setUp() {
+    parent::setUp('mobile_tools_browscap');
+    $this->admin_user = $this->drupalCreateUser(array('administer mobile tools'));
+    $this->device_group = array(
+      'title' => 'Test Group',
+      'dgid'  => 'test_group',
+      'purl_modifier' => 'test_modifier',
+      'description' => 'Test device group.',
+      'detector' => 'mobile_tools_browscap',
+    );
+    $this->edited_device_group = array(
+      'title' => 'Renamed Test Group',
+      'purl_modifier' => 'renamed_test_modifier',
+      'description' => 'Renamed test device group.',
+      'detector' => 'none',
+    );
+    $this->mainUrl = 'admin/config/system/mobile-tools';
+    $this->settingsUrl = 'admin/config/system/mobile-tools/settings';
+    $this->addUrl = 'admin/config/system/mobile-tools/add';
+    $this->editUrl = 'admin/config/system/mobile-tools/edit';
+    $this->deleteUrl = 'admin/config/system/mobile-tools/delete';
+  }
+
+  public function testNewDeviceGroupWithDetection() {
+
+    $this->drupalLogin($this->admin_user);
+
+    // Test adding new device group
+    // Get add device group form
+    $this->drupalGet($this->addUrl);
+    $this->assertText('Device Group Name', t('Found device group form.'));
+    $this->verbose(_mobile_tools_get_device_detectors());
+    $form = $this->device_group;
+
+    // Submit new device group
+    $this->drupalPost($this->addUrl, $form, t('Save device group'));
+    $this->assertText($this->device_group['title']);
+    $this->assertText($this->device_group['dgid']);
+    $this->assertText($this->device_group['purl_modifier']);
+    $this->assertText($this->device_group['description']);
+    $this->assertLinkByHref($this->editUrl . '/test_group', 0, t('Edit link found.'));
+    $this->assertLinkByHref($this->deleteUrl . '/test_group', 0, t('Delete link found.'));
+
+    // Test editing device group
+    // Get edit device group form
+    $this->drupalGet($this->editUrl . '/test_group');
+    $this->assertFieldByName('title', $this->device_group['title'], t('Found title field.'));
+    $this->assertFieldByName('dgid', $this->device_group['dgid'], t('Found machine-name field.'));
+    $this->assertFieldByName('purl_modifier', $this->device_group['purl_modifier'], t('Found PURL modifier field.'));
+    $this->assertOptionSelected('edit-detector', $this->device_group['detector'], t('Found detector option: browscap.'));
+    $this->assertFieldByName('description', $this->device_group['description'], t('Found description field.'));
+    $form = $this->edited_device_group;
+
+    // Submit edited device group
+    $this->drupalPost($this->editUrl . '/test_group',
+                      $form,
+                      t('Save device group'));
+    $this->assertText($this->edited_device_group['title']);
+    $this->assertText($this->device_group['dgid']);
+    $this->assertText($this->edited_device_group['purl_modifier']);
+    $this->assertText($this->edited_device_group['description']);
+    $this->assertLinkByHref($this->editUrl . '/test_group', 0, t('Edit link found.'));
+    $this->assertLinkByHref($this->deleteUrl . '/test_group', 0, t('Delete link found.'));
+
+    // Get edited device group settings
+    $this->drupalGet($this->editUrl . '/test_group');
+    $this->assertFieldByName('title', $this->edited_device_group['title'], t('Found title field.'));
+    $this->assertFieldByName('dgid', $this->edited_device_group['dgid'], t('Found machine-name field.'));
+    $this->assertFieldByName('purl_modifier', $this->edited_device_group['purl_modifier'], t('Found PURL modifier field.'));
+    $this->assertOptionSelected('edit-detector', $this->edited_device_group['detector'], t('Found detector option: browscap.'));
+    $this->assertFieldByName('description', $this->edited_device_group['description'], t('Found description field.'));
+
+    // Test deleting device group
+    // Get delete device group form
+    $this->drupalGet($this->deleteUrl . '/test_group');
+    $this->assertText('Are you sure you want to delete the device group ' . $form['title']);
+    $form = array('confirm' => 1);
+
+    // Confirm deletion of device group
+    $this->drupalPost($this->deleteUrl . '/test_group', $form, t('Delete'));
+    $this->assertText('Device group test_group has been deleted.');
+    $this->assertNoText($this->edited_device_group['title']);
+    // */
+  }
+}
+

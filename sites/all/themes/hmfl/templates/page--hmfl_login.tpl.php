@@ -1,4 +1,3 @@
-
 <?php
 global $base_url;
 global $user;
@@ -20,6 +19,7 @@ foreach ($result as $res) {
  $logo_url = file_create_url($imgpath);
 $i=0;
 $j=0;
+
  $development = db_query("SELECT id AS dev_id FROM hmfl_development WHERE developer_id = '$new_id' ");
  foreach($development as $dev) {
    // $dev_arr[] = $dev->dev_id;
@@ -66,6 +66,7 @@ foreach ($result as $res) {
                 <?php echo drupal_render($variables['page']['content']['system_main']['plot']); ?>
                 <br class="clear"/>
             </div>
+             
             <div class="formfield">
                 <?php echo drupal_render($variables['page']['content']['system_main']['password']); ?>
                 <br class="clear"/>
@@ -83,7 +84,11 @@ echo drupal_render_children($variables['page']['content']['system_main']);
 
     </div>
     <div class="cl_right fleft">
+       <?php if(!$_COOKIE['login_count'] == 1): ?>
+         <div style="width:620px; height:490px;"><img src="<?php print $base_url; ?>/sites/default/files/map_uk.jpg"/></div>
+       <?php else: ?>
         <div id="map" style="width:620px; height:490px;"></div>
+         <?php endif; ?>
         <p align="right" style="text-align:right;">Select your development from the drop down menu on the left to see the location of your new home</p>
     </div>
     <br class="clear"/>
