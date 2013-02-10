@@ -493,6 +493,9 @@ function hmfl_developer_admins($cid)
 	if(isset($user_data->field_full_name['und']['0']['value'])) {
 	  $full_name = $user_data->field_full_name['und']['0']['value'];
 	 }
+	 else {
+	   $full_name = '';
+	  }
     $rows[] = array('data' => array(
       '<div class="ajax-edit-admin" id="'.$row->uid.'">'.$row->name.'</div>',
 	  render(drupal_get_form('hmfl_password_reset',$row->uid)),
@@ -970,15 +973,16 @@ function hmfl_pass_perm() {
 
 function hmfl_password_reset($form,&$form_state,$uid) {
    $form = array();
+   $form['uid'] = array(
+	'#type'=> 'hidden',
+	'#value' => $uid,
+	);
    $form['submit'] = array(
      '#type'=>'submit',
 	 '#value'=> t('Reset'),
 	 '#submit' => array('hmfl_password_reset_submit'),
 	);
-	$form['uid'] = array(
-	'#type'=> 'hidden',
-	'#value' => $uid,
-	);
+	
 	return $form;
 }
    

@@ -545,6 +545,9 @@ function hmfl_development_admins($did)
 	if(isset($user_data->field_full_name['und']['0']['value'])) {
 	  $full_name = $user_data->field_full_name['und']['0']['value'];
 	 }
+	 else {
+	   $full_name = '';
+	 }
     $rows[] = array('data' => array(
       '<div class="ajax-edit-admin" id="'.$row->uid.'">'.$row->name.'</div>',
 	  render(drupal_get_form('hmfl_password_reset',$row->uid)),
